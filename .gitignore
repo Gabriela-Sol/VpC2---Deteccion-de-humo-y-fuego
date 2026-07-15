@@ -1,0 +1,41 @@
+# Entornos virtuales
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Datos
+data/*
+!data/README.md
+
+# Entrenamientos y resultados de Ultralytics
+runs/
+models/
+weights/
+
+# Pesos y modelos exportados
+*.pt
+*.pth
+*.onnx
+*.engine
+*.tflite
+
+# Archivos temporales
+*.log
+*.tmp
+
+# Variables de entorno
+.env
+
+# Editores
+.vscode/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
