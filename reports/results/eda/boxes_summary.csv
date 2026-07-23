@@ -1,0 +1,7 @@
+split,class_name,cantidad_boxes
+test,fire,2878
+test,smoke,2315
+train,fire,9638
+train,smoke,7794
+val,fire,2176
+val,smoke,1756

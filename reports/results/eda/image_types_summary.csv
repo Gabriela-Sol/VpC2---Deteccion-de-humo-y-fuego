@@ -1,0 +1,13 @@
+split,image_type,cantidad
+test,fire,220
+test,negative,2005
+test,smoke,1186
+test,smoke_and_fire,895
+train,fire,770
+train,negative,6458
+train,smoke,3836
+train,smoke_and_fire,3058
+val,fire,174
+val,negative,1375
+val,smoke,845
+val,smoke_and_fire,705

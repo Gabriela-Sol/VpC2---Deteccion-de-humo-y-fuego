@@ -1,0 +1,4 @@
+split,labels_vacios,boxes_validos,entradas_problematicas
+train,6458,17432,0
+val,1375,3932,0
+test,2005,5185,8

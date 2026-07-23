@@ -1,0 +1,4 @@
+split,imagenes,etiquetas,imagenes_sin_etiqueta,etiquetas_sin_imagen,etiquetas_vacias
+train,14122,14122,0,0,6458
+val,3099,3099,0,0,1375
+test,4306,4306,0,0,2005
