@@ -107,15 +107,27 @@ def compute_map(
 
 
 def _average_precision(recall: np.ndarray, precision: np.ndarray) -> float:
-    """AP por interpolación en 101 puntos, la convención de COCO."""
+    """AP en 101 puntos con el criterio de COCO.
+
+    COCO no interpola linealmente entre puntos de recall: para cada umbral toma
+    la precisión envolvente del primer recall que lo alcanza, o sea una función
+    escalonada. Interpolar linealmente suaviza las caídas de precisión y
+    sobreestima el AP, y además daría un número que no coincide con el
+    `map50_per_class` que devuelve torchmetrics para la misma clase.
+    """
     if recall.size == 0:
         return 0.0
 
     # La precisión se vuelve monótona decreciente de derecha a izquierda.
     precision_envolvente = np.maximum.accumulate(precision[::-1])[::-1]
     puntos = np.linspace(0.0, 1.0, 101)
-    interpolada = np.interp(puntos, recall, precision_envolvente, left=precision_envolvente[0], right=0.0)
-    return float(interpolada.mean())
+
+    indices = np.searchsorted(recall, puntos, side="left")
+    valores = np.zeros(puntos.size)
+    alcanzables = indices < precision_envolvente.size
+    valores[alcanzables] = precision_envolvente[indices[alcanzables]]
+
+    return float(valores.mean())
 
 
 def compute_curves(

@@ -1131,6 +1131,7 @@ git commit -m "feat: emparejamiento por IoU y matriz de confusion"
 """Tests de métricas: mAP, curvas de confianza y FPS."""
 
 import numpy as np
+import pytest
 import torch
 from torch.utils.data import DataLoader
 
@@ -1243,6 +1244,26 @@ def test_pr_per_class_incluye_average_precision():
     assert len(curvas["pr_per_class"][1]["recall"]) == len(
         curvas["pr_per_class"][1]["precision"]
     )
+
+
+def test_ap_ignora_los_falsos_positivos_de_menor_score():
+    # Con la detección de mayor score acertando, la envolvente de precisión se
+    # mantiene en 1.0 hasta el recall máximo, así que el AP es exactamente 1.0
+    # por más falsos positivos de menor score que vengan atrás. Interpolar
+    # linealmente en lugar de usar el escalón de COCO daría 0.9921.
+    predicciones = [
+        _pred(
+            [[0, 0, 10, 10], [100, 100, 110, 110], [200, 200, 210, 210],
+             [300, 300, 310, 310], [400, 400, 410, 410]],
+            [0.75, 0.5, 0.25, 0.125, 0.0625],
+            [1, 1, 1, 1, 1],
+        )
+    ]
+    targets = [_gt([[0, 0, 10, 10]], [1])]
+
+    curvas = compute_curves(predicciones, targets)
+
+    assert curvas["pr_per_class"][1]["ap"] == pytest.approx(1.0)
 
 
 def test_sin_ground_truth_las_curvas_no_explotan():
@@ -1399,15 +1420,27 @@ def compute_map(
 
 
 def _average_precision(recall: np.ndarray, precision: np.ndarray) -> float:
-    """AP por interpolación en 101 puntos, la convención de COCO."""
+    """AP en 101 puntos con el criterio de COCO.
+
+    COCO no interpola linealmente entre puntos de recall: para cada umbral toma
+    la precisión envolvente del primer recall que lo alcanza, o sea una función
+    escalonada. Interpolar linealmente suaviza las caídas de precisión y
+    sobreestima el AP, y además daría un número que no coincide con el
+    `map50_per_class` que devuelve torchmetrics para la misma clase.
+    """
     if recall.size == 0:
         return 0.0
 
     # La precisión se vuelve monótona decreciente de derecha a izquierda.
     precision_envolvente = np.maximum.accumulate(precision[::-1])[::-1]
     puntos = np.linspace(0.0, 1.0, 101)
-    interpolada = np.interp(puntos, recall, precision_envolvente, left=precision_envolvente[0], right=0.0)
-    return float(interpolada.mean())
+
+    indices = np.searchsorted(recall, puntos, side="left")
+    valores = np.zeros(puntos.size)
+    alcanzables = indices < precision_envolvente.size
+    valores[alcanzables] = precision_envolvente[indices[alcanzables]]
+
+    return float(valores.mean())
 
 
 def compute_curves(

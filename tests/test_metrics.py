@@ -1,6 +1,7 @@
 """Tests de métricas: mAP, curvas de confianza y FPS."""
 
 import numpy as np
+import pytest
 import torch
 from torch.utils.data import DataLoader
 
@@ -113,6 +114,26 @@ def test_pr_per_class_incluye_average_precision():
     assert len(curvas["pr_per_class"][1]["recall"]) == len(
         curvas["pr_per_class"][1]["precision"]
     )
+
+
+def test_ap_ignora_los_falsos_positivos_de_menor_score():
+    # Con la detección de mayor score acertando, la envolvente de precisión se
+    # mantiene en 1.0 hasta el recall máximo, así que el AP es exactamente 1.0
+    # por más falsos positivos de menor score que vengan atrás. Interpolar
+    # linealmente en lugar de usar el escalón de COCO daría 0.9921.
+    predicciones = [
+        _pred(
+            [[0, 0, 10, 10], [100, 100, 110, 110], [200, 200, 210, 210],
+             [300, 300, 310, 310], [400, 400, 410, 410]],
+            [0.75, 0.5, 0.25, 0.125, 0.0625],
+            [1, 1, 1, 1, 1],
+        )
+    ]
+    targets = [_gt([[0, 0, 10, 10]], [1])]
+
+    curvas = compute_curves(predicciones, targets)
+
+    assert curvas["pr_per_class"][1]["ap"] == pytest.approx(1.0)
 
 
 def test_sin_ground_truth_las_curvas_no_explotan():
