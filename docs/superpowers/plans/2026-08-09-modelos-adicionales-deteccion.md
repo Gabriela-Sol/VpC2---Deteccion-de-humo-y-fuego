@@ -3585,9 +3585,18 @@ import numpy as np
 
 from src.reporting.summary import write_metrics_summary
 
-# Ultralytics ordena las clases como en el YAML: 0 = smoke, 1 = fire.
-map50_por_clase = metrics.box.ap50
-map95_por_clase = metrics.box.ap
+# metrics.box.ap50 y .ap traen una fila por clase QUE TUVO ETIQUETAS, y
+# ap_class_index dice a qué clase corresponde cada fila. Indexar por posición
+# atribuiría las métricas a la clase equivocada si alguna faltara, así que se
+# resuelve por id de clase.
+SMOKE, FIRE = 0, 1  # ids del YAML del dataset
+fila_de_clase = {int(c): i for i, c in enumerate(metrics.box.ap_class_index)}
+
+
+def ap_de(vector, clase):
+    indice = fila_de_clase.get(clase)
+    return float(vector[indice]) if indice is not None else float("nan")
+
 
 # La velocidad viene en milisegundos por imagen: inferencia más postproceso.
 ms_por_imagen = metrics.speed["inference"] + metrics.speed["postprocess"]
@@ -3609,10 +3618,10 @@ resumen = {
     "precision": round(precision, 4),
     "recall": round(recall, 4),
     "f1": round(2 * precision * recall / (precision + recall), 4) if (precision + recall) else 0.0,
-    "mAP50_smoke": round(float(map50_por_clase[0]), 4),
-    "mAP50_fire": round(float(map50_por_clase[1]), 4),
-    "mAP50_95_smoke": round(float(map95_por_clase[0]), 4),
-    "mAP50_95_fire": round(float(map95_por_clase[1]), 4),
+    "mAP50_smoke": round(ap_de(metrics.box.ap50, SMOKE), 4),
+    "mAP50_fire": round(ap_de(metrics.box.ap50, FIRE), 4),
+    "mAP50_95_smoke": round(ap_de(metrics.box.ap, SMOKE), 4),
+    "mAP50_95_fire": round(ap_de(metrics.box.ap, FIRE), 4),
     "fps": round(1000.0 / ms_por_imagen, 2),
     "device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
     "split": "val",
@@ -3728,6 +3737,18 @@ ms_por_imagen = metrics.speed["inference"] + metrics.speed["postprocess"]
 precision = float(np.mean(metrics.box.p))
 recall = float(np.mean(metrics.box.r))
 
+# ap50 y ap traen una fila por clase que tuvo etiquetas; ap_class_index dice a
+# cuál corresponde cada una. Indexar por posición atribuiría las métricas a la
+# clase equivocada si alguna faltara.
+SMOKE, FIRE = 0, 1
+fila_de_clase = {int(c): i for i, c in enumerate(metrics.box.ap_class_index)}
+
+
+def ap_de(vector, clase):
+    indice = fila_de_clase.get(clase)
+    return float(vector[indice]) if indice is not None else float("nan")
+
+
 resumen = {
     "experiment": experiment_name,
     "family": cfg["experiment"]["family"],
@@ -3742,10 +3763,10 @@ resumen = {
     "precision": round(precision, 4),
     "recall": round(recall, 4),
     "f1": round(2 * precision * recall / (precision + recall), 4) if (precision + recall) else 0.0,
-    "mAP50_smoke": round(float(metrics.box.ap50[0]), 4),
-    "mAP50_fire": round(float(metrics.box.ap50[1]), 4),
-    "mAP50_95_smoke": round(float(metrics.box.ap[0]), 4),
-    "mAP50_95_fire": round(float(metrics.box.ap[1]), 4),
+    "mAP50_smoke": round(ap_de(metrics.box.ap50, SMOKE), 4),
+    "mAP50_fire": round(ap_de(metrics.box.ap50, FIRE), 4),
+    "mAP50_95_smoke": round(ap_de(metrics.box.ap, SMOKE), 4),
+    "mAP50_95_fire": round(ap_de(metrics.box.ap, FIRE), 4),
     "fps": round(1000.0 / ms_por_imagen, 2),
     "device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
     "split": "val",
