@@ -785,12 +785,14 @@ def test_clase_distinta_no_empareja():
 
 def test_solo_la_deteccion_de_mayor_score_se_queda_con_el_gt():
     # Dos detecciones sobre un único objeto: la segunda es un duplicado.
+    # Los scores son 0.5 y 0.75 porque ambos son exactos en binario; con 0.6 y
+    # 0.9 la comparación por igualdad fallaría contra el redondeo de float32.
     resultado = match_dataset(
-        [_pred([[0, 0, 10, 10], [0, 0, 10, 10]], [0.6, 0.9], [1, 1])],
+        [_pred([[0, 0, 10, 10], [0, 0, 10, 10]], [0.5, 0.75], [1, 1])],
         [_gt([[0, 0, 10, 10]], [1])],
     )
     # El resultado viene ordenado por score descendente.
-    assert resultado.scores.tolist() == [0.9, 0.6]
+    assert resultado.scores.tolist() == [0.75, 0.5]
     assert resultado.true_positive.tolist() == [True, False]
 
 
