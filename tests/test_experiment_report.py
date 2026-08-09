@@ -6,7 +6,11 @@ from torch.utils.data import DataLoader
 
 from src.data.yolo_dataset import YoloDetectionDataset, collate_fn
 from src.modeling.detectors import build_fasterrcnn
-from src.reporting.experiment_report import generate_experiment_report, write_history_csv
+from src.reporting.experiment_report import (
+    build_metrics_row,
+    generate_experiment_report,
+    write_history_csv,
+)
 from src.reporting.summary import METRICS_SUMMARY_COLUMNS
 
 CONFIG = {
@@ -43,6 +47,33 @@ def test_write_history_csv(tmp_path):
     assert len(df) == 2
     assert df.columns[0] == "epoch"
     assert "metrics/mAP50" in df.columns
+
+
+def test_build_metrics_row_asigna_cada_clase_a_su_columna():
+    # Los cuatro valores por clase son distintos a propósito: si smoke y fire se
+    # intercambiaran, el informe saldría plausible pero atribuiría el desempeño
+    # de una clase a la otra, y con el modelo sin entrenar del test de
+    # integración los dos números son casi iguales y no se notaría.
+    fila = build_metrics_row(
+        config=CONFIG,
+        map_metrics={
+            "map50": 0.70,
+            "map50_95": 0.40,
+            "map50_per_class": {1: 0.11, 2: 0.22},
+            "map50_95_per_class": {1: 0.33, 2: 0.44},
+        },
+        curves={"best_precision": 0.60, "best_recall": 0.50, "best_f1": 0.55},
+        params_M=3.2,
+        fps=12.5,
+        train_time_min=1.5,
+        device_name="cpu",
+    )
+
+    assert fila["mAP50_smoke"] == 0.11
+    assert fila["mAP50_fire"] == 0.22
+    assert fila["mAP50_95_smoke"] == 0.33
+    assert fila["mAP50_95_fire"] == 0.44
+    assert set(fila) == set(METRICS_SUMMARY_COLUMNS)
 
 
 def test_genera_todos_los_artefactos_del_spec(synthetic_dataset, tmp_path):
