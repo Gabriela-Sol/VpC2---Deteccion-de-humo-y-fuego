@@ -2614,7 +2614,11 @@ from torch.utils.data import DataLoader
 
 from src.data.yolo_dataset import YoloDetectionDataset, collate_fn
 from src.modeling.detectors import build_fasterrcnn
-from src.reporting.experiment_report import generate_experiment_report, write_history_csv
+from src.reporting.experiment_report import (
+    build_metrics_row,
+    generate_experiment_report,
+    write_history_csv,
+)
 from src.reporting.summary import METRICS_SUMMARY_COLUMNS
 
 CONFIG = {
@@ -2651,6 +2655,33 @@ def test_write_history_csv(tmp_path):
     assert len(df) == 2
     assert df.columns[0] == "epoch"
     assert "metrics/mAP50" in df.columns
+
+
+def test_build_metrics_row_asigna_cada_clase_a_su_columna():
+    # Los cuatro valores por clase son distintos a propósito: si smoke y fire se
+    # intercambiaran, el informe saldría plausible pero atribuiría el desempeño
+    # de una clase a la otra, y con el modelo sin entrenar del test de
+    # integración los dos números son casi iguales y no se notaría.
+    fila = build_metrics_row(
+        config=CONFIG,
+        map_metrics={
+            "map50": 0.70,
+            "map50_95": 0.40,
+            "map50_per_class": {1: 0.11, 2: 0.22},
+            "map50_95_per_class": {1: 0.33, 2: 0.44},
+        },
+        curves={"best_precision": 0.60, "best_recall": 0.50, "best_f1": 0.55},
+        params_M=3.2,
+        fps=12.5,
+        train_time_min=1.5,
+        device_name="cpu",
+    )
+
+    assert fila["mAP50_smoke"] == 0.11
+    assert fila["mAP50_fire"] == 0.22
+    assert fila["mAP50_95_smoke"] == 0.33
+    assert fila["mAP50_95_fire"] == 0.44
+    assert set(fila) == set(METRICS_SUMMARY_COLUMNS)
 
 
 def test_genera_todos_los_artefactos_del_spec(synthetic_dataset, tmp_path):
@@ -2738,6 +2769,57 @@ CONFUSION_CONF_THRESHOLD = 0.25
 CONFUSION_IOU_THRESHOLD = 0.45
 CURVES_IOU_THRESHOLD = 0.5
 
+# Las columnas del CSV llevan el nombre de la clase, así que la etiqueta se
+# resuelve por nombre y no por posición: desacoplar esto de LABEL_ORDER evita
+# que un reordenamiento futuro intercambie las métricas de smoke y fire.
+LABEL_BY_NAME = {nombre: label for label, nombre in CLASS_NAMES.items()}
+
+
+def build_metrics_row(
+    config: dict,
+    map_metrics: dict,
+    curves: dict,
+    params_M: float,
+    fps: float,
+    train_time_min: float,
+    device_name: str,
+) -> dict:
+    """Arma la fila única de `metrics_summary.csv`.
+
+    Está separada del reporte para poder testearla: un intercambio entre las
+    columnas de smoke y fire produciría un informe plausible pero equivocado, y
+    el test de integración usa un modelo sin entrenar cuyas métricas por clase
+    son casi idénticas, así que no lo detectaría.
+    """
+    experiment = config["experiment"]
+    training = config["training"]
+
+    label_smoke = LABEL_BY_NAME["smoke"]
+    label_fire = LABEL_BY_NAME["fire"]
+
+    return {
+        "experiment": experiment["name"],
+        "family": experiment["family"],
+        "model": experiment["model"],
+        "params_M": round(params_M, 2),
+        "epochs": training["epochs"],
+        "imgsz": training["imgsz"],
+        "batch": training["batch"],
+        "train_time_min": round(float(train_time_min), 2),
+        "mAP50": round(map_metrics["map50"], 4),
+        "mAP50_95": round(map_metrics["map50_95"], 4),
+        "precision": round(curves["best_precision"], 4),
+        "recall": round(curves["best_recall"], 4),
+        "f1": round(curves["best_f1"], 4),
+        "mAP50_smoke": round(map_metrics["map50_per_class"][label_smoke], 4),
+        "mAP50_fire": round(map_metrics["map50_per_class"][label_fire], 4),
+        "mAP50_95_smoke": round(map_metrics["map50_95_per_class"][label_smoke], 4),
+        "mAP50_95_fire": round(map_metrics["map50_95_per_class"][label_fire], 4),
+        "fps": round(fps, 2),
+        "device": device_name,
+        "split": "val",
+    }
+
 
 def write_history_csv(history: list[dict], out_csv) -> Path:
     """Historial por época, con el mismo espíritu que el results.csv de Ultralytics."""
@@ -2800,34 +2882,15 @@ def generate_experiment_report(
     with open(out_dir / "experiment_config_used.yaml", "w", encoding="utf-8") as archivo:
         yaml.safe_dump(config, archivo, sort_keys=False, allow_unicode=True)
 
-    experiment = config["experiment"]
-    training = config["training"]
-
-    # Los nombres de clase en el CSV son fijos, así que se resuelven por etiqueta.
-    label_smoke, label_fire = LABEL_ORDER
-
-    metrics = {
-        "experiment": experiment["name"],
-        "family": experiment["family"],
-        "model": experiment["model"],
-        "params_M": round(count_parameters(model) / 1e6, 2),
-        "epochs": training["epochs"],
-        "imgsz": training["imgsz"],
-        "batch": training["batch"],
-        "train_time_min": round(float(train_time_min), 2),
-        "mAP50": round(map_metrics["map50"], 4),
-        "mAP50_95": round(map_metrics["map50_95"], 4),
-        "precision": round(curves["best_precision"], 4),
-        "recall": round(curves["best_recall"], 4),
-        "f1": round(curves["best_f1"], 4),
-        "mAP50_smoke": round(map_metrics["map50_per_class"][label_smoke], 4),
-        "mAP50_fire": round(map_metrics["map50_per_class"][label_fire], 4),
-        "mAP50_95_smoke": round(map_metrics["map50_95_per_class"][label_smoke], 4),
-        "mAP50_95_fire": round(map_metrics["map50_95_per_class"][label_fire], 4),
-        "fps": round(fps, 2),
-        "device": device_name,
-        "split": "val",
-    }
+    metrics = build_metrics_row(
+        config=config,
+        map_metrics=map_metrics,
+        curves=curves,
+        params_M=count_parameters(model) / 1e6,
+        fps=fps,
+        train_time_min=train_time_min,
+        device_name=device_name,
+    )
 
     write_metrics_summary(out_dir / "metrics_summary.csv", metrics)
     print(f"Reporte completo en: {out_dir}")
