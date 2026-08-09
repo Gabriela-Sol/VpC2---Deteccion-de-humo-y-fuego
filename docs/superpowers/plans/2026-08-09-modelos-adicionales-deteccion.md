@@ -735,6 +735,7 @@ Las cajas están elegidas para que los IoU sean fáciles de verificar a mano.
 """
 
 import numpy as np
+import pytest
 import torch
 
 from src.engine.matching import confusion_matrix, match_dataset
@@ -872,6 +873,33 @@ def test_matriz_de_confusion_ignora_detecciones_bajo_el_umbral_de_confianza():
     # La detección se descarta, así que el objeto queda sin detectar.
     assert matriz[2, 0] == 1
     assert matriz.sum() == 1
+
+
+def test_matriz_de_confusion_solo_la_de_mayor_score_consume_el_gt():
+    # Sin esta prueba, borrar la línea que marca el GT como consumido no
+    # rompería ningún test, y los duplicados dejarían de penalizarse.
+    matriz = confusion_matrix(
+        [_pred([[0, 0, 10, 10], [0, 0, 10, 10]], [0.5, 0.75], [1, 1])],
+        [_gt([[0, 0, 10, 10]], [1])],
+        label_order=[1, 2],
+    )
+    assert matriz[0, 0] == 1  # la de score 0.75 acierta
+    assert matriz[0, 2] == 1  # la de score 0.5 queda como falso positivo
+    assert matriz.sum() == 2
+
+
+def test_match_dataset_exige_listas_alineadas():
+    with pytest.raises(ValueError, match="alineados"):
+        match_dataset([_pred([[0, 0, 10, 10]], [0.9], [1])], [])
+
+
+def test_confusion_matrix_exige_listas_alineadas():
+    # Sin esta validación, zip() truncaría en silencio y las métricas
+    # derivadas quedarían mal sin que nada fallara.
+    with pytest.raises(ValueError, match="alineados"):
+        confusion_matrix(
+            [_pred([[0, 0, 10, 10]], [0.9], [1])], [], label_order=[1, 2]
+        )
 ```
 
 - [ ] **Step 2: Correr los tests para verificar que fallan**
@@ -1014,6 +1042,12 @@ def confusion_matrix(
     detección con la caja correcta pero la clase equivocada cae fuera de la
     diagonal en vez de contarse como un falso positivo más un falso negativo.
     """
+    if len(predictions) != len(targets):
+        raise ValueError(
+            f"predictions y targets deben estar alineados: "
+            f"{len(predictions)} != {len(targets)}"
+        )
+
     n_clases = len(label_order)
     fondo = n_clases
     indice_de_label = {label: posicion for posicion, label in enumerate(label_order)}
