@@ -61,7 +61,7 @@ src/
   data/
     __init__.py
     yolo_dataset.py      YoloDetectionDataset, collate_fn
-  models/
+  modeling/
     __init__.py
     detectors.py         build_fasterrcnn(...)
   engine/
@@ -77,6 +77,12 @@ src/
 Los notebooks corren en Colab, donde el repositorio se clona en
 `/content/VpC2---Deteccion-de-humo-y-fuego`. Para importar `src` basta con
 `sys.path.insert(0, str(PROJECT_DIR))` después del clonado.
+
+El paquete se llama `modeling` y no `models` a propósito: el `.gitignore` del repositorio
+incluye la regla `models/`, que aplica a cualquier directorio con ese nombre en cualquier
+nivel. Un `src/models/` quedaría excluido del control de versiones sin previo aviso, y el
+error solo se descubriría cuando el notebook de Colab clonara el repo y no encontrara el
+módulo.
 
 ### `data/yolo_dataset.py`
 
@@ -102,7 +108,7 @@ del baseline YOLO.
 `collate_fn` simplemente empaqueta las muestras en listas, porque las imágenes de un
 batch pueden tener tamaños distintos.
 
-### `models/detectors.py`
+### `modeling/detectors.py`
 
 `build_fasterrcnn(num_classes, backbone, trainable_backbone_layers, min_size, max_size)`
 construye el modelo y reemplaza el cabezal de clasificación. El parámetro `backbone`
@@ -188,6 +194,11 @@ Todas las métricas se calculan sobre el split de validación, con protocolo COC
 las tres filas sean comparables. La columna `split` queda registrada explícitamente para
 que quede claro sobre qué datos se midió.
 
+Las columnas `precision`, `recall` y `f1` se reportan en el umbral de confianza que
+maximiza el F1, que es el mismo criterio que usa Ultralytics. Fijar el criterio importa:
+sin él, precision y recall pueden tomar casi cualquier valor según el umbral elegido y las
+filas dejarían de ser comparables entre sí.
+
 ## Notebooks
 
 - **`03_entrenamiento_FasterRCNN.ipynb`**: reproduce el esqueleto del notebook 02 (setup,
@@ -196,8 +207,10 @@ que quede claro sobre qué datos se midió.
   y hace commit.
 - **`04_entrenamiento_RTDETR.ipynb`**: clon del notebook 02 con `RTDETR` en lugar de
   `YOLO`, más la celda de exportación de `metrics_summary.csv`.
-- **`05_comparacion_modelos.ipynb`**: lee los `metrics_summary.csv` de
-  `reports/results/*/`, arma la tabla comparativa y genera las figuras en
+- **`05_comparacion_modelos.ipynb`**: recorre el glob
+  `reports/results/*/metrics_summary.csv`, que naturalmente deja afuera a
+  `reports/results/eda/` porque esa carpeta no tiene ese archivo, arma la tabla
+  comparativa y genera las figuras en
   `reports/figures/comparacion/`: barras de mAP50 y mAP50-95 por modelo, mAP por clase, y
   un gráfico de dispersión de mAP50-95 contra FPS que muestra el compromiso entre
   precisión y velocidad.
