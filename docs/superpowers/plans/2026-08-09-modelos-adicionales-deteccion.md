@@ -1576,6 +1576,7 @@ git commit -m "feat: metricas de deteccion con mAP COCO, curvas de confianza y F
 ```python
 """Tests del bucle de entrenamiento y de la persistencia de checkpoints."""
 
+import pytest
 import torch
 from torch.utils.data import DataLoader
 
@@ -1635,6 +1636,17 @@ def test_build_scheduler_cosine_baja_el_lr():
 def test_build_scheduler_none_devuelve_none():
     optimizer = build_optimizer(_modelo(), CONFIG_BASE)
     assert build_scheduler(optimizer, {**CONFIG_BASE, "lr_scheduler": "none"}, 10) is None
+
+
+def test_build_optimizer_rechaza_un_nombre_desconocido():
+    with pytest.raises(ValueError, match="sgd"):
+        build_optimizer(_modelo(), {**CONFIG_BASE, "optimizer": "inventado"})
+
+
+def test_build_scheduler_rechaza_un_nombre_desconocido():
+    optimizer = build_optimizer(_modelo(), CONFIG_BASE)
+    with pytest.raises(ValueError, match="cosine"):
+        build_scheduler(optimizer, {**CONFIG_BASE, "lr_scheduler": "inventado"}, 10)
 
 
 def test_train_one_epoch_devuelve_las_perdidas_promedio(synthetic_dataset):
@@ -1698,6 +1710,48 @@ def test_checkpoint_ida_y_vuelta(tmp_path):
         modelo.roi_heads.box_predictor.cls_score.weight,
         modelo_nuevo.roi_heads.box_predictor.cls_score.weight,
     )
+
+
+def test_checkpoint_restaura_estado_ya_acumulado(synthetic_dataset, tmp_path):
+    # El test anterior guarda un optimizador recién construido, cuyo estado está
+    # vacío: pasaría igual si load_checkpoint no restaurara nada. Este entrena
+    # primero para que haya momentum y el scheduler haya avanzado, que es lo que
+    # de verdad tiene que sobrevivir cuando una corrida de 6 horas se reanuda.
+    dataset = YoloDetectionDataset(synthetic_dataset / "train", train=True, seed=0)
+    loader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)
+
+    modelo = _modelo()
+    optimizer = build_optimizer(modelo, CONFIG_BASE)
+    scheduler = build_scheduler(optimizer, CONFIG_BASE, epochs=10)
+
+    train_one_epoch(modelo, optimizer, loader, torch.device("cpu"), max_batches=2)
+    scheduler.step()
+    scheduler.step()
+
+    estado_previo = optimizer.state_dict()["state"]
+    assert estado_previo, "el optimizador debería haber acumulado momentum"
+    lr_previo = optimizer.param_groups[0]["lr"]
+    last_epoch_previo = scheduler.last_epoch
+
+    ruta = tmp_path / "checkpoint.pth"
+    save_checkpoint(ruta, modelo, optimizer, scheduler, epoch=1, history=[])
+
+    modelo_nuevo = _modelo()
+    optimizer_nuevo = build_optimizer(modelo_nuevo, CONFIG_BASE)
+    scheduler_nuevo = build_scheduler(optimizer_nuevo, CONFIG_BASE, epochs=10)
+    load_checkpoint(
+        ruta, modelo_nuevo, optimizer_nuevo, scheduler_nuevo, torch.device("cpu")
+    )
+
+    assert scheduler_nuevo.last_epoch == last_epoch_previo
+    assert optimizer_nuevo.param_groups[0]["lr"] == pytest.approx(lr_previo)
+
+    estado_nuevo = optimizer_nuevo.state_dict()["state"]
+    assert set(estado_nuevo) == set(estado_previo)
+    for clave, valores in estado_previo.items():
+        assert torch.allclose(
+            valores["momentum_buffer"], estado_nuevo[clave]["momentum_buffer"]
+        )
 
 
 def test_load_checkpoint_sin_optimizador_tambien_funciona(tmp_path):
