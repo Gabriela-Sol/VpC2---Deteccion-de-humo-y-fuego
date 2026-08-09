@@ -2179,12 +2179,41 @@ import pandas as pd
 import pytest
 
 from src.reporting.plots import (
+    mean_average_precision,
+    normalize_by_column,
     plot_confusion_matrix,
     plot_metric_vs_confidence,
     plot_model_comparison,
     plot_pr_curve,
     plot_results_csv,
 )
+
+
+def test_normalize_by_column_normaliza_columnas_y_no_filas():
+    # La matriz es asimétrica a propósito: con una simétrica, normalizar por
+    # filas daría el mismo resultado y el test no detectaría el intercambio.
+    normalizada = normalize_by_column(np.array([[2, 0], [2, 4]]))
+
+    assert np.allclose(normalizada, [[0.5, 0.0], [0.5, 1.0]])
+    assert np.allclose(normalizada.sum(axis=0), 1.0)
+
+
+def test_normalize_by_column_deja_en_cero_la_columna_vacia():
+    # La columna de fondo suele sumar cero; dividir daría NaN y un RuntimeWarning.
+    normalizada = normalize_by_column(np.array([[10, 0, 0], [0, 10, 0], [0, 0, 0]]))
+
+    assert np.allclose(normalizada[:, 2], 0.0)
+    assert not np.isnan(normalizada).any()
+
+
+def test_mean_average_precision_ignora_las_clases_sin_ground_truth():
+    pr_per_class = {1: {"ap": 0.8}, 2: {"ap": float("nan")}}
+
+    assert mean_average_precision(pr_per_class) == pytest.approx(0.8)
+
+
+def test_mean_average_precision_sin_clases_medibles_es_nan():
+    assert np.isnan(mean_average_precision({1: {"ap": float("nan")}}))
 
 
 def _curvas():
@@ -2354,6 +2383,30 @@ def _guardar(fig, out_png) -> Path:
     return out_png
 
 
+def normalize_by_column(matrix) -> np.ndarray:
+    """Normaliza cada columna de la matriz de confusión a suma 1.
+
+    Es una función aparte y no código embebido en el gráfico porque es la única
+    parte con aritmética: así se puede testear directamente. Una columna que
+    suma cero —el caso normal de la columna de fondo— queda en cero, no en NaN.
+    """
+    matriz = np.asarray(matrix, dtype=float)
+    sumas = matriz.sum(axis=0, keepdims=True)
+    return np.divide(matriz, sumas, out=np.zeros_like(matriz), where=sumas > 0)
+
+
+def mean_average_precision(pr_per_class: dict) -> float:
+    """Promedia los AP por clase ignorando las clases sin ningún objeto real.
+
+    `compute_map` devuelve NaN para esas clases; incluirlas en el promedio lo
+    volvería NaN entero y el número desaparecería del gráfico sin explicación.
+    """
+    aps = [
+        datos["ap"] for datos in pr_per_class.values() if not np.isnan(datos["ap"])
+    ]
+    return float(np.mean(aps)) if aps else float("nan")
+
+
 def plot_results_csv(results_csv, out_png) -> Path:
     """Panel con las pérdidas de entrenamiento y las métricas de validación."""
     df = pd.read_csv(results_csv)
@@ -2382,12 +2435,7 @@ def plot_results_csv(results_csv, out_png) -> Path:
 
 def plot_confusion_matrix(matrix, class_names, out_png, normalize: bool = False) -> Path:
     """Matriz `[predicho, real]`; normalizada, cada columna suma 1."""
-    matriz = np.asarray(matrix, dtype=float)
-
-    if normalize:
-        sumas = matriz.sum(axis=0, keepdims=True)
-        # Las columnas vacías (típicamente la de fondo) quedan en cero en vez de NaN.
-        matriz = np.divide(matriz, sumas, out=np.zeros_like(matriz), where=sumas > 0)
+    matriz = normalize_by_column(matrix) if normalize else np.asarray(matrix, dtype=float)
 
     fig, ax = plt.subplots(figsize=(6, 5))
     imagen = ax.imshow(matriz, cmap="Blues")
@@ -2417,16 +2465,18 @@ def plot_pr_curve(curves: dict, out_png, class_names: dict = CLASS_NAMES) -> Pat
     """Curva precisión-recall por clase, con el AP en la leyenda."""
     fig, ax = plt.subplots(figsize=(7, 5))
 
-    aps = []
     for label, datos in curves["pr_per_class"].items():
         nombre = class_names.get(label, str(label))
-        ap = datos["ap"]
-        if ap == ap:  # descarta NaN
-            aps.append(ap)
-        ax.plot(datos["recall"], datos["precision"], linewidth=1.8, label=f"{nombre} (AP={ap:.3f})")
+        ax.plot(
+            datos["recall"],
+            datos["precision"],
+            linewidth=1.8,
+            label=f"{nombre} (AP={datos['ap']:.3f})",
+        )
 
-    if aps:
-        ax.plot([], [], " ", label=f"mAP@0.5 = {np.mean(aps):.3f}")
+    promedio = mean_average_precision(curves["pr_per_class"])
+    if not np.isnan(promedio):
+        ax.plot([], [], " ", label=f"mAP@0.5 = {promedio:.3f}")
 
     ax.set_xlabel("Recall")
     ax.set_ylabel("Precisión")
