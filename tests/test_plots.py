@@ -5,6 +5,8 @@ import pandas as pd
 import pytest
 
 from src.reporting.plots import (
+    mean_average_precision,
+    normalize_by_column,
     plot_confusion_matrix,
     plot_metric_vs_confidence,
     plot_model_comparison,
@@ -33,7 +35,7 @@ def _curvas():
             2: {
                 "recall": np.linspace(0, 1, 50),
                 "precision": np.linspace(1, 0.4, 50),
-                "ap": 0.70,
+                "ap": float("nan"),
             },
         },
     }
@@ -107,6 +109,33 @@ def test_plot_confusion_matrix_normalizada_tolera_columna_en_cero(tmp_path):
             matriz, ["smoke", "fire", "background"], tmp_path / "cmn0.png", normalize=True
         )
     )
+
+
+def test_normalize_by_column_normaliza_columnas_y_no_filas():
+    # La matriz es asimétrica a propósito: con una simétrica, normalizar por
+    # filas daría el mismo resultado y el test no detectaría el intercambio.
+    normalizada = normalize_by_column(np.array([[2, 0], [2, 4]]))
+
+    assert np.allclose(normalizada, [[0.5, 0.0], [0.5, 1.0]])
+    assert np.allclose(normalizada.sum(axis=0), 1.0)
+
+
+def test_normalize_by_column_deja_en_cero_la_columna_vacia():
+    # La columna de fondo suele sumar cero; dividir daría NaN y un RuntimeWarning.
+    normalizada = normalize_by_column(np.array([[10, 0, 0], [0, 10, 0], [0, 0, 0]]))
+
+    assert np.allclose(normalizada[:, 2], 0.0)
+    assert not np.isnan(normalizada).any()
+
+
+def test_mean_average_precision_ignora_las_clases_sin_ground_truth():
+    pr_per_class = {1: {"ap": 0.8}, 2: {"ap": float("nan")}}
+
+    assert mean_average_precision(pr_per_class) == pytest.approx(0.8)
+
+
+def test_mean_average_precision_sin_clases_medibles_es_nan():
+    assert np.isnan(mean_average_precision({1: {"ap": float("nan")}}))
 
 
 def test_plot_pr_curve(tmp_path):
