@@ -4,6 +4,7 @@ Las cajas están elegidas para que los IoU sean fáciles de verificar a mano.
 """
 
 import numpy as np
+import pytest
 import torch
 
 from src.engine.matching import confusion_matrix, match_dataset
@@ -97,6 +98,17 @@ def test_cuenta_ground_truth_por_clase_en_varias_imagenes():
     assert resultado.n_ground_truth == {1: 2, 2: 1}
 
 
+def test_match_dataset_lanza_valueerror_si_las_listas_no_estan_alineadas():
+    with pytest.raises(ValueError):
+        match_dataset(
+            [_pred([[0, 0, 10, 10]], [0.9], [1])],
+            [
+                _gt([[0, 0, 10, 10]], [1]),
+                _gt([[0, 0, 10, 10]], [1]),
+            ],
+        )
+
+
 def test_matriz_de_confusion_acierto_va_a_la_diagonal():
     matriz = confusion_matrix(
         [_pred([[0, 0, 10, 10]], [0.9], [1])],
@@ -141,3 +153,30 @@ def test_matriz_de_confusion_ignora_detecciones_bajo_el_umbral_de_confianza():
     # La detección se descarta, así que el objeto queda sin detectar.
     assert matriz[2, 0] == 1
     assert matriz.sum() == 1
+
+
+def test_matriz_de_confusion_lanza_valueerror_si_las_listas_no_estan_alineadas():
+    with pytest.raises(ValueError):
+        confusion_matrix(
+            [_pred([[0, 0, 10, 10]], [0.9], [1])],
+            [
+                _gt([[0, 0, 10, 10]], [1]),
+                _gt([[0, 0, 10, 10]], [1]),
+            ],
+            label_order=[1, 2],
+        )
+
+
+def test_matriz_de_confusion_solo_la_deteccion_de_mayor_score_se_queda_con_el_gt():
+    # Dos detecciones de la misma clase sobre un único objeto: la de mayor
+    # score se queda con el GT (va a la diagonal) y la duplicada, al no tener
+    # GT libre para emparejar, cae en la columna de fondo de su propia fila.
+    # Scores 0.75 y 0.5 porque ambos son exactos en binario.
+    matriz = confusion_matrix(
+        [_pred([[0, 0, 10, 10], [0, 0, 10, 10]], [0.5, 0.75], [1, 1])],
+        [_gt([[0, 0, 10, 10]], [1])],
+        label_order=[1, 2],
+    )
+    assert matriz[0, 0] == 1  # la detección de mayor score empareja con el GT
+    assert matriz[0, 2] == 1  # la duplicada no tiene GT libre -> falso positivo
+    assert matriz.sum() == 2

@@ -130,6 +130,12 @@ def confusion_matrix(
     detección con la caja correcta pero la clase equivocada cae fuera de la
     diagonal en vez de contarse como un falso positivo más un falso negativo.
     """
+    if len(predictions) != len(targets):
+        raise ValueError(
+            f"predictions y targets deben estar alineados: "
+            f"{len(predictions)} != {len(targets)}"
+        )
+
     n_clases = len(label_order)
     fondo = n_clases
     indice_de_label = {label: posicion for posicion, label in enumerate(label_order)}
