@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -19,7 +20,6 @@ from src.engine.metrics import (
     compute_map,
     measure_inference_fps,
 )
-from src.modeling.detectors import count_parameters
 from src.reporting.plots import (
     plot_confusion_matrix,
     plot_metric_vs_confidence,
@@ -92,6 +92,69 @@ def build_metrics_row(
     }
 
 
+def build_ultralytics_metrics_row(
+    config: dict,
+    box_metrics,
+    speed: dict,
+    params_M: float,
+    train_time_min: float,
+    device_name: str,
+) -> dict:
+    """Arma la fila de `metrics_summary.csv` a partir de un resultado de Ultralytics.
+
+    `box_metrics` es el `metrics.box` que devuelve `model.val()`. Sus vectores
+    `ap50` y `ap` traen una fila por clase QUE TUVO ETIQUETAS, indexada por
+    `ap_class_index` y no por id de clase: si una clase faltara en validación,
+    indexar por posición le atribuiría sus métricas a la otra.
+
+    Está acá y no duplicada en los notebooks 02 y 04 porque un intercambio
+    entre smoke y fire produce un informe plausible y equivocado, y porque la
+    versión duplicada ya costó una corrección doble.
+    """
+    experiment = config["experiment"]
+    training = config["training"]
+
+    # Ids del YAML del dataset (D-Fire), no las etiquetas de torchvision.
+    smoke_id, fire_id = 0, 1
+    fila_de_clase = {
+        int(clase): posicion
+        for posicion, clase in enumerate(box_metrics.ap_class_index)
+    }
+
+    def ap_de(vector, clase: int) -> float:
+        indice = fila_de_clase.get(clase)
+        return float(vector[indice]) if indice is not None else float("nan")
+
+    precision = float(np.mean(box_metrics.p))
+    recall = float(np.mean(box_metrics.r))
+    ms_por_imagen = speed["inference"] + speed["postprocess"]
+
+    return {
+        "experiment": experiment["name"],
+        "family": experiment["family"],
+        "model": experiment["model"],
+        "params_M": round(params_M, 2),
+        "epochs": training["epochs"],
+        "imgsz": training["imgsz"],
+        "batch": training["batch"],
+        "train_time_min": round(float(train_time_min), 2),
+        "mAP50": round(float(box_metrics.map50), 4),
+        "mAP50_95": round(float(box_metrics.map), 4),
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "f1": round(2 * precision * recall / (precision + recall), 4)
+        if (precision + recall)
+        else 0.0,
+        "mAP50_smoke": round(ap_de(box_metrics.ap50, smoke_id), 4),
+        "mAP50_fire": round(ap_de(box_metrics.ap50, fire_id), 4),
+        "mAP50_95_smoke": round(ap_de(box_metrics.ap, smoke_id), 4),
+        "mAP50_95_fire": round(ap_de(box_metrics.ap, fire_id), 4),
+        "fps": round(1000.0 / ms_por_imagen, 2),
+        "device": device_name,
+        "split": "val",
+    }
+
+
 def generate_experiment_report(
     model,
     val_loader,
@@ -149,7 +212,11 @@ def generate_experiment_report(
         config=config,
         map_metrics=map_metrics,
         curves=curves,
-        params_M=count_parameters(model) / 1e6,
+        # La columna params_M significa parámetros TOTALES, que es lo que suman
+        # los notebooks de Ultralytics. `count_parameters` cuenta solo los
+        # entrenables y con trainable_backbone_layers=3 parte del ResNet50 está
+        # congelada, así que usarla acá haría incomparable la columna.
+        params_M=sum(p.numel() for p in model.parameters()) / 1e6,
         fps=fps,
         train_time_min=train_time_min,
         device_name=device_name,

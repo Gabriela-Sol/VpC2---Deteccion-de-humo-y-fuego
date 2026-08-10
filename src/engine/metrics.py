@@ -18,7 +18,9 @@ from src.data.yolo_dataset import LABEL_ORDER
 from src.engine.matching import match_dataset
 
 # Detecciones por debajo de este score no aportan a ninguna métrica y sí
-# encarecen el cálculo.
+# encarecen el cálculo. Coincide a propósito con el `box_score_thresh` con el
+# que `build_fasterrcnn` arma el detector y con el `conf=0.001` que usa
+# Ultralytics al validar: es la misma cota para los tres modelos.
 MIN_SCORE = 1e-3
 
 
@@ -137,22 +139,40 @@ def compute_curves(
     iou_threshold: float = 0.5,
     n_thresholds: int = 101,
 ) -> dict:
-    """Curvas P, R y F1 contra confianza, más la curva PR por clase."""
+    """Curvas P, R y F1 contra confianza, más la curva PR por clase.
+
+    La precisión y el recall se promedian **macro**: se calculan por clase y
+    después se promedian entre las clases que tienen algún objeto real. Es lo
+    que reporta Ultralytics (promedio de sus vectores por clase), y es la
+    librería que produjo el baseline ya commiteado. Agrupar todas las
+    detecciones (micro) daría números distintos cuando las clases tienen
+    cantidades de cajas muy diferentes, como pasa entre smoke y fire en D-Fire.
+    """
     match = match_dataset(predictions, targets, iou_threshold=iou_threshold)
-    total_gt = sum(match.n_ground_truth.values())
 
     confidence = np.linspace(0.0, 1.0, n_thresholds)
     precision = np.zeros(n_thresholds)
     recall = np.zeros(n_thresholds)
     f1 = np.zeros(n_thresholds)
 
+    clases_medibles = [
+        label for label in label_order if match.n_ground_truth.get(label, 0) > 0
+    ]
+
     for posicion, umbral in enumerate(confidence):
         seleccion = match.scores >= umbral
-        verdaderos = int(match.true_positive[seleccion].sum())
-        detectadas = int(seleccion.sum())
 
-        p = verdaderos / detectadas if detectadas else 0.0
-        r = verdaderos / total_gt if total_gt else 0.0
+        precisiones, recalls = [], []
+        for label in clases_medibles:
+            de_la_clase = seleccion & (match.labels == label)
+            verdaderos = int(match.true_positive[de_la_clase].sum())
+            detectadas = int(de_la_clase.sum())
+
+            precisiones.append(verdaderos / detectadas if detectadas else 0.0)
+            recalls.append(verdaderos / match.n_ground_truth[label])
+
+        p = float(np.mean(precisiones)) if precisiones else 0.0
+        r = float(np.mean(recalls)) if recalls else 0.0
 
         precision[posicion] = p
         recall[posicion] = r
@@ -201,6 +221,13 @@ def measure_inference_fps(model, dataset, device, num_images: int = 50, warmup: 
 
     Las primeras `warmup` pasadas se descartan: la primera inferencia paga la
     inicialización de kernels y no representa el régimen estacionario.
+
+    La decodificación de los JPEG, la lectura de disco y la transferencia al
+    device quedan deliberadamente FUERA de la medición: los tensores se
+    materializan antes de arrancar el cronómetro. Ultralytics reporta
+    `speed["inference"] + speed["postprocess"]`, que tampoco incluye el
+    preproceso, así que medir el disco acá haría incomparables las dos
+    columnas de FPS.
     """
     model.eval()
     model.to(device)
@@ -209,15 +236,17 @@ def measure_inference_fps(model, dataset, device, num_images: int = 50, warmup: 
     if total == 0:
         return 0.0
 
-    for indice in range(min(warmup, len(dataset))):
-        model([dataset[indice][0].to(device)])
+    imagenes = [dataset[indice][0].to(device) for indice in range(total)]
+
+    for imagen in imagenes[: min(warmup, total)]:
+        model([imagen])
 
     if device.type == "cuda":
         torch.cuda.synchronize()
 
     inicio = time.perf_counter()
-    for indice in range(total):
-        model([dataset[indice][0].to(device)])
+    for imagen in imagenes:
+        model([imagen])
     if device.type == "cuda":
         torch.cuda.synchronize()
     transcurrido = time.perf_counter() - inicio

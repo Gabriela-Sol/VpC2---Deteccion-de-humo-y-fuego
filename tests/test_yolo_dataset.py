@@ -1,8 +1,11 @@
 """Tests del dataset YOLO -> torchvision."""
 
+import warnings
 from pathlib import Path
 
+import pytest
 import torch
+from PIL import Image
 
 from src.data.yolo_dataset import (
     CLASS_NAMES,
@@ -26,6 +29,43 @@ def _por_nombre(dataset: YoloDetectionDataset, stem: str):
 def test_constantes_de_clases():
     assert LABEL_ORDER == [1, 2]
     assert CLASS_NAMES == {1: "smoke", 2: "fire"}
+
+
+def _split_con_etiquetas(root: Path, contenido: dict) -> Path:
+    (root / "images").mkdir(parents=True)
+    (root / "labels").mkdir(parents=True)
+    for stem, texto in contenido.items():
+        Image.new("RGB", (ANCHO, ALTO)).save(root / "images" / f"{stem}.jpg")
+        (root / "labels" / f"{stem}.txt").write_text(texto, encoding="utf-8")
+    return root
+
+
+def test_avisa_una_sola_vez_por_las_lineas_mal_formadas(tmp_path: Path):
+    # Cuatro líneas malas de distinto tipo repartidas en dos archivos: falta un
+    # campo, un valor no numérico, una clase desconocida y una línea de sobra.
+    split = _split_con_etiquetas(
+        tmp_path / "train",
+        {
+            "a": "0 0.5 0.5 0.2\n0 0.5 0.5 0.2 0.4\n1 x 0.5 0.2 0.4",
+            "b": "7 0.5 0.5 0.2 0.4\n1 0.5 0.5 0.2 0.4 0.9",
+        },
+    )
+
+    with pytest.warns(UserWarning, match="4 líneas de etiqueta mal formadas"):
+        dataset = YoloDetectionDataset(split)
+
+    assert dataset.malformed_label_lines == 4
+    # Las dos líneas buenas siguen llegando a los targets.
+    assert len(_por_nombre(dataset, "a")[1]["boxes"]) == 1
+    assert len(_por_nombre(dataset, "b")[1]["boxes"]) == 0
+
+
+def test_sin_lineas_mal_formadas_no_hay_aviso(synthetic_dataset: Path):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        dataset = YoloDetectionDataset(synthetic_dataset / "train")
+
+    assert dataset.malformed_label_lines == 0
 
 
 def test_convierte_cxcywh_normalizado_a_xyxy_absoluto(synthetic_dataset: Path):

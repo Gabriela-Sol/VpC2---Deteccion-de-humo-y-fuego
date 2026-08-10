@@ -1,7 +1,7 @@
 
 experiment:
   name: yolov8n_baseline
-  family: YOLOv8
+  family: Una etapa (CNN)
   model: yolov8n.pt
   description: Baseline liviano con YOLOv8 nano.
 

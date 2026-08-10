@@ -1,6 +1,6 @@
 experiment:
   name: fasterrcnn_r50fpn
-  family: Faster R-CNN
+  family: Dos etapas (CNN)
   model: fasterrcnn_resnet50_fpn_v2
   description: Detector de dos etapas con ResNet50-FPN v2 preentrenado en COCO.
 

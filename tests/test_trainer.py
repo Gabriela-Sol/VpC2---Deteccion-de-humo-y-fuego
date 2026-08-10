@@ -52,6 +52,10 @@ def test_build_scheduler_cosine_baja_el_lr():
 
     lr_inicial = optimizer.param_groups[0]["lr"]
     for _ in range(5):
+        # optimizer.step() antes de scheduler.step(), el mismo orden que usa
+        # train_one_epoch. Al revés, PyTorch avisa que se saltea el primer valor
+        # del schedule. Sin gradientes el paso del optimizador no mueve nada.
+        optimizer.step()
         scheduler.step()
 
     assert optimizer.param_groups[0]["lr"] < lr_inicial

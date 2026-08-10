@@ -1,4 +1,6 @@
-ultralytics
+# La API usada por los notebooks 02 y 04 (metrics.box.ap_class_index,
+# metrics.speed) se verificó contra 8.4.117.
+ultralytics>=8.3,<8.5
 opencv-python-headless
 matplotlib
 pandas
@@ -10,3 +12,5 @@ torchvision
 tqdm
 torchmetrics
 pycocotools
+# Requerido por Styler.background_gradient, que usa el notebook 05.
+jinja2

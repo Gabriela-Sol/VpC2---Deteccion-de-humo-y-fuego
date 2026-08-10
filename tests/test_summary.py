@@ -55,6 +55,27 @@ def test_escribe_una_sola_fila_con_las_columnas_en_orden(tmp_path):
     assert df.loc[0, "mAP50"] == 0.80
 
 
+def test_el_nan_sobrevive_la_ida_y_vuelta_por_csv(tmp_path):
+    # compute_map devuelve NaN para las clases sin ningún objeto real, así que
+    # mAP50_fire puede ser NaN legítimamente, escribirse al CSV y volver a
+    # leerse en el notebook 05. Un cambio de na_rep o de dtype rompería esto.
+    metricas = _metricas()
+    metricas["mAP50_fire"] = float("nan")
+    metricas["mAP50_95_fire"] = float("nan")
+
+    carpeta = tmp_path / "fasterrcnn_r50fpn"
+    carpeta.mkdir()
+    write_metrics_summary(carpeta / "metrics_summary.csv", metricas)
+
+    df = load_metrics_summaries(tmp_path)
+
+    assert pd.isna(df.loc[0, "mAP50_fire"])
+    assert pd.isna(df.loc[0, "mAP50_95_fire"])
+    # Las demás columnas no se contaminan.
+    assert df.loc[0, "mAP50_smoke"] == 0.77
+    assert df.loc[0, "mAP50"] == 0.80
+
+
 def test_falla_si_falta_una_columna(tmp_path):
     metricas = _metricas()
     del metricas["fps"]

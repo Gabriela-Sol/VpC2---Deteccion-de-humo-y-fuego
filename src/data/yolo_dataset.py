@@ -9,6 +9,7 @@ dataset: coordenadas fuera de rango, cajas degeneradas e imágenes sin objetos.
 from __future__ import annotations
 
 import random
+import warnings
 from pathlib import Path
 
 import torch
@@ -26,6 +27,29 @@ CLASS_NAMES = {1: "smoke", 2: "fire"}
 
 # Ancho o alto mínimo, en píxeles, para que una caja se considere válida.
 MIN_BOX_SIZE_PX = 1.0
+
+
+def _parse_label_line(line: str):
+    """Devuelve `(yolo_class, cx, cy, w, h)` o `None` si la línea es inválida.
+
+    Una sola definición de qué se considera una línea válida, para que el
+    conteo de descartes del `__init__` y la lectura de `_load_boxes` no puedan
+    divergir.
+    """
+    parts = line.split()
+    if len(parts) != 5:
+        return None
+
+    try:
+        yolo_class = int(float(parts[0]))
+        center_x, center_y, box_w, box_h = (float(value) for value in parts[1:])
+    except ValueError:
+        return None
+
+    if yolo_class not in YOLO_TO_TORCHVISION_LABEL:
+        return None
+
+    return yolo_class, center_x, center_y, box_w, box_h
 
 
 class YoloDetectionDataset(Dataset):
@@ -58,6 +82,31 @@ class YoloDetectionDataset(Dataset):
         self.train = train
         self.hflip_prob = hflip_prob
         self._rng = random.Random(seed)
+
+        self.malformed_label_lines = self._count_malformed_label_lines()
+        if self.malformed_label_lines:
+            # Un aviso por split, nunca uno por línea: en el dataset real serían
+            # miles de mensajes. Descartar una caja real no solo pierde una
+            # anotación: convierte una detección correcta en un falso positivo y
+            # baja la precisión, así que conviene que se vea.
+            warnings.warn(
+                f"{self.split_dir}: se descartaron {self.malformed_label_lines} "
+                "líneas de etiqueta mal formadas (campos faltantes, valores no "
+                "numéricos o clase desconocida).",
+                stacklevel=2,
+            )
+
+    def _count_malformed_label_lines(self) -> int:
+        """Cuenta las líneas de etiqueta que `_load_boxes` va a descartar."""
+        total = 0
+        for image_path in self.image_paths:
+            label_path = self.labels_dir / f"{image_path.stem}.txt"
+            if not label_path.exists():
+                continue
+            for line in label_path.read_text(encoding="utf-8").splitlines():
+                if line.strip() and _parse_label_line(line) is None:
+                    total += 1
+        return total
 
     def __len__(self) -> int:
         return len(self.image_paths)
@@ -97,18 +146,10 @@ class YoloDetectionDataset(Dataset):
 
         if label_path.exists():
             for line in label_path.read_text(encoding="utf-8").splitlines():
-                parts = line.split()
-                if len(parts) != 5:
+                parseada = _parse_label_line(line)
+                if parseada is None:
                     continue
-
-                try:
-                    yolo_class = int(float(parts[0]))
-                    center_x, center_y, box_w, box_h = (float(value) for value in parts[1:])
-                except ValueError:
-                    continue
-
-                if yolo_class not in YOLO_TO_TORCHVISION_LABEL:
-                    continue
+                yolo_class, center_x, center_y, box_w, box_h = parseada
 
                 x1 = (center_x - box_w / 2) * width
                 y1 = (center_y - box_h / 2) * height

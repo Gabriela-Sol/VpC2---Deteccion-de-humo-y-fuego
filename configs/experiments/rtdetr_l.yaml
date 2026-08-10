@@ -1,6 +1,6 @@
 experiment:
   name: rtdetr_l
-  family: RT-DETR
+  family: Transformer
   model: rtdetr-l.pt
   description: Detector transformer en tiempo real, variante large.
 
@@ -9,7 +9,10 @@ training:
   imgsz: 640
   batch: 8
   patience: 10
-  optimizer: auto
+  # AdamW y no `auto`: con `auto` Ultralytics descarta lr0 y elige el optimizador
+  # y el learning rate por su cuenta (SGD a 0.01 con mas de 10000 iteraciones).
+  # RT-DETR es un transformer y necesita AdamW alrededor de 1e-4.
+  optimizer: AdamW
   lr0: 0.0001
   seed: 42
 

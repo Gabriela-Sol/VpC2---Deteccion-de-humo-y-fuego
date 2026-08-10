@@ -1,5 +1,6 @@
 """Test de integración del reporte completo, en CPU y con un modelo sin entrenar."""
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
@@ -8,6 +9,7 @@ from src.data.yolo_dataset import YoloDetectionDataset, collate_fn
 from src.modeling.detectors import build_fasterrcnn
 from src.reporting.experiment_report import (
     build_metrics_row,
+    build_ultralytics_metrics_row,
     generate_experiment_report,
     write_history_csv,
 )
@@ -74,6 +76,63 @@ def test_build_metrics_row_asigna_cada_clase_a_su_columna():
     assert fila["mAP50_95_smoke"] == 0.33
     assert fila["mAP50_95_fire"] == 0.44
     assert set(fila) == set(METRICS_SUMMARY_COLUMNS)
+
+
+class _BoxMetricsFalsas:
+    def __init__(self, ap50, ap, p, r, ap_class_index):
+        self.map50, self.map = 0.70, 0.40
+        self.ap50, self.ap = np.array(ap50), np.array(ap)
+        self.p, self.r = np.array(p), np.array(r)
+        self.ap_class_index = np.array(ap_class_index)
+
+
+def test_build_ultralytics_metrics_row_asigna_cada_clase_a_su_columna():
+    # Cuatro valores distintos por la misma razón que en build_metrics_row: un
+    # intercambio entre smoke y fire daría un informe plausible y equivocado.
+    fila = build_ultralytics_metrics_row(
+        config=CONFIG,
+        box_metrics=_BoxMetricsFalsas(
+            ap50=[0.11, 0.22], ap=[0.33, 0.44],
+            p=[0.5, 0.7], r=[0.4, 0.6], ap_class_index=[0, 1],
+        ),
+        speed={"preprocess": 1.0, "inference": 8.0, "postprocess": 2.0},
+        params_M=3.2,
+        train_time_min=1.5,
+        device_name="Tesla T4",
+    )
+
+    assert fila["mAP50_smoke"] == 0.11
+    assert fila["mAP50_fire"] == 0.22
+    assert fila["mAP50_95_smoke"] == 0.33
+    assert fila["mAP50_95_fire"] == 0.44
+    assert fila["precision"] == 0.6
+    assert fila["recall"] == 0.5
+    # Media armónica de 0.6 y 0.5.
+    assert fila["f1"] == round(2 * 0.6 * 0.5 / 1.1, 4)
+    # El preproceso no cuenta: 1000 / (8 + 2).
+    assert fila["fps"] == 100.0
+    assert fila["split"] == "val"
+    assert set(fila) == set(METRICS_SUMMARY_COLUMNS)
+
+
+def test_build_ultralytics_metrics_row_con_una_clase_ausente():
+    # Solo fire tuvo etiquetas en validación: ap_class_index = [1]. Indexar por
+    # posición le daría a smoke los números de fire.
+    fila = build_ultralytics_metrics_row(
+        config=CONFIG,
+        box_metrics=_BoxMetricsFalsas(
+            ap50=[0.22], ap=[0.44], p=[0.7], r=[0.6], ap_class_index=[1],
+        ),
+        speed={"inference": 8.0, "postprocess": 2.0},
+        params_M=3.2,
+        train_time_min=1.5,
+        device_name="Tesla T4",
+    )
+
+    assert np.isnan(fila["mAP50_smoke"])
+    assert np.isnan(fila["mAP50_95_smoke"])
+    assert fila["mAP50_fire"] == 0.22
+    assert fila["mAP50_95_fire"] == 0.44
 
 
 def test_genera_todos_los_artefactos_del_spec(synthetic_dataset, tmp_path):

@@ -31,6 +31,17 @@ def test_min_size_y_max_size_llegan_al_transform():
     assert model.transform.max_size == 1024
 
 
+def test_umbrales_de_deteccion_igualan_el_presupuesto_de_ultralytics():
+    # torchvision viene con 0.05 y 100 detecciones; Ultralytics evalua con 0.001 y 300.
+    # Con los defaults de torchvision, Faster R-CNN perderia la cola de baja confianza
+    # antes de que la metrica la vea, y su mAP saldria sistematicamente mas bajo que el
+    # de los otros dos modelos por una razon que no es el modelo.
+    model = build_fasterrcnn(backbone="mobilenet_v3_large_fpn", pretrained=False)
+
+    assert model.roi_heads.score_thresh == 0.001
+    assert model.roi_heads.detections_per_img == 300
+
+
 def test_backbone_desconocido_falla_con_mensaje_claro():
     with pytest.raises(ValueError, match="resnet50_fpn_v2"):
         build_fasterrcnn(backbone="inexistente", pretrained=False)

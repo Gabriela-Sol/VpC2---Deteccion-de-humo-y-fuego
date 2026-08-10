@@ -103,6 +103,25 @@ def test_best_confidence_maximiza_f1():
     assert curvas["best_recall"] == 1.0
 
 
+def test_precision_y_recall_promedian_por_clase_y_no_agrupando():
+    # Clase 1: un objeto, detectado. Clase 2: tres objetos, uno detectado.
+    # Agrupando (micro) el recall daria 2/4 = 0.5; promediando por clase (macro),
+    # que es lo que reporta Ultralytics, da (1/1 + 1/3)/2 = 0.6667.
+    predicciones = [
+        _pred([[0, 0, 10, 10], [20, 20, 30, 30]], [0.75, 0.75], [1, 2])
+    ]
+    targets = [
+        _gt(
+            [[0, 0, 10, 10], [20, 20, 30, 30], [40, 40, 50, 50], [60, 60, 70, 70]],
+            [1, 2, 2, 2],
+        )
+    ]
+
+    curvas = compute_curves(predicciones, targets)
+
+    assert curvas["recall"][0] == pytest.approx(2 / 3, abs=1e-4)
+
+
 def test_pr_per_class_incluye_average_precision():
     predicciones = [_pred([[0, 0, 10, 10]], [0.9], [1])]
     targets = [_gt([[0, 0, 10, 10]], [1])]
@@ -166,8 +185,19 @@ def test_measure_inference_fps_es_positivo(synthetic_dataset):
         backbone="mobilenet_v3_large_fpn", min_size=64, max_size=128, pretrained=False
     )
 
+    llamadas = {"n": 0}
+    original = model.forward
+
+    def contando(*args, **kwargs):
+        llamadas["n"] += 1
+        return original(*args, **kwargs)
+
+    model.forward = contando
     fps = measure_inference_fps(
-        model, dataset, torch.device("cpu"), num_images=2, warmup=1
+        model, dataset, torch.device("cpu"), num_images=3, warmup=1
     )
 
     assert fps > 0.0
+    # 1 de calentamiento + 3 medidas: si el calentamiento entrara en el tiempo, o si
+    # num_images se ignorara, este numero cambiaria.
+    assert llamadas["n"] == 4
