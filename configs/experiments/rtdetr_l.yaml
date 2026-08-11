@@ -5,7 +5,9 @@ experiment:
   description: Detector transformer en tiempo real, variante large.
 
 training:
-  epochs: 20
+  # 30 para igualar el presupuesto del baseline YOLOv8n y de Faster R-CNN, así
+  # la comparación no premia al modelo que entrenó más tiempo.
+  epochs: 30
   imgsz: 640
   batch: 8
   patience: 10
