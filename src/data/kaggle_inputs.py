@@ -14,7 +14,7 @@ import stat
 from pathlib import Path
 
 
-def restore_checkpoint_from_inputs(inputs_root, dest_path) -> Path | None:
+def restore_checkpoint_from_inputs(inputs_root: Path, dest_path: Path) -> Path | None:
     """Deja en `dest_path` el checkpoint montado bajo `inputs_root`.
 
     Devuelve la ruta del checkpoint listo para usar, o `None` si no se encontró
@@ -33,13 +33,15 @@ def restore_checkpoint_from_inputs(inputs_root, dest_path) -> Path | None:
     # El patrón arranca con `*/` para saltear el nivel de slug y `**` matchea
     # cero o más directorios, así que cubre tanto el archivo suelto en la raíz
     # del Dataset como el anidado en runs/<experimento>/.
-    candidatos = sorted(inputs_root.glob(f"*/**/{dest_path.name}"))
+    candidatos = list(inputs_root.glob(f"*/**/{dest_path.name}"))
     if not candidatos:
         return None
 
-    # El último alfabéticamente es el de mayor versión del notebook, porque
-    # Kaggle numera los slugs de output de forma creciente.
-    origen = candidatos[-1]
+    # Elegimos por fecha de modificación del archivo para asegurar la versión más
+    # reciente. El orden alfabético es incorrecto para números con diferente cantidad
+    # de dígitos (e.g. mi-version-9 vs mi-version-10). Si dos empatan en mtime,
+    # sorted() proporciona un desempate determinista por ruta.
+    origen = max(candidatos, key=lambda p: (p.stat().st_mtime, str(p)))
 
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(origen, dest_path)

@@ -5,6 +5,7 @@ import stat
 from pathlib import Path
 
 from src.data.kaggle_inputs import restore_checkpoint_from_inputs
+from time import time
 
 
 def _montaje_readonly(root: Path, slug: str, relativo: str, contenido: bytes) -> Path:
@@ -77,3 +78,32 @@ def test_elige_el_ultimo_slug_cuando_hay_varios(tmp_path: Path):
     restore_checkpoint_from_inputs(inputs, destino)
 
     assert destino.read_bytes() == b"nueva"
+
+
+def test_elige_por_mtime_no_alfabetico_con_digitos_diferentes(tmp_path: Path):
+    """Verifica que se elige por fecha, no por orden alfabético de slugs.
+
+    Crítico: sorted() sobre strings pone 'mi-version-10' antes que 'mi-version-9',
+    así que un algoritmo alfabético devolvería el checkpoint viejo (v9) cuando el
+    más reciente es v10. Este test fija explícitamente los mtime para asegurar que
+    la función elige correctamente por fecha de modificación.
+    """
+    inputs = tmp_path / "input"
+
+    # Crear v9 con contenido viejo y v10 con contenido nuevo
+    checkpoint_v9 = _montaje_readonly(inputs, "mi-version-9", "last_checkpoint.pth", b"viejo")
+    checkpoint_v10 = _montaje_readonly(inputs, "mi-version-10", "last_checkpoint.pth", b"nuevo")
+
+    # Fijar mtimes explícitamente: v9 en un tiempo anterior, v10 en uno posterior
+    mtime_v9 = 1000000.0
+    mtime_v10 = 1000001.0
+    os.utime(checkpoint_v9, (mtime_v9, mtime_v9))
+    os.utime(checkpoint_v10, (mtime_v10, mtime_v10))
+
+    destino = tmp_path / "runs" / "fasterrcnn_r50fpn" / "last_checkpoint.pth"
+
+    resultado = restore_checkpoint_from_inputs(inputs, destino)
+
+    # Sin la corrección (sorted alfabético), esto fallaría porque elegiría v9 (b"viejo")
+    assert resultado == destino
+    assert destino.read_bytes() == b"nuevo"
