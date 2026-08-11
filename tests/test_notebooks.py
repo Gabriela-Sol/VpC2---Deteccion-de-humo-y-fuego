@@ -32,7 +32,13 @@ def _codigo_python(notebook: dict) -> str:
         if celda["cell_type"] != "code":
             continue
 
-        for linea in celda["source"]:
+        # Normalizar source: puede ser una lista de líneas o un string único.
+        # nbformat acepta ambas formas, pero algunas herramientas producen strings.
+        source = celda["source"]
+        if isinstance(source, str):
+            source = source.splitlines(keepends=True)
+
+        for linea in source:
             despojada = linea.lstrip()
             indentacion = " " * (len(linea) - len(despojada))
 
@@ -91,3 +97,28 @@ def test_maneja_asignacion_con_magic():
     # Y contener la asignación reemplazada
     assert "gpu_info = None" in codigo
     assert "!nvidia-smi" not in codigo
+
+
+def test_normaliza_source_como_string():
+    """Verifica que normaliza correctamente cuando source es un string único.
+
+    nbformat acepta tanto listas de líneas como strings únicos. Algunos editores
+    (como NotebookEdit) generan strings, así que la función debe manejar ambos
+    formatos transparentemente, no iterar carácter por carácter.
+    """
+    # source como string único (no lista) con un magic
+    nb = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": "%cd /tmp\nprint('ok')\n",
+            }
+        ]
+    }
+    codigo = _codigo_python(nb)
+    # Debe compilar sin errores (el magic se reemplaza por pass)
+    compile(codigo, "test", "exec")
+    # Debe contener pass en lugar del magic
+    assert "pass" in codigo
+    assert "%cd" not in codigo
+    # Sin normalización, "%cd" se corruptaría a fragmentos de caracteres

@@ -5,7 +5,6 @@ import stat
 from pathlib import Path
 
 from src.data.kaggle_inputs import restore_checkpoint_from_inputs
-from time import time
 
 
 def _montaje_readonly(root: Path, slug: str, relativo: str, contenido: bytes) -> Path:
