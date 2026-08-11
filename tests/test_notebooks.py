@@ -99,26 +99,26 @@ def test_maneja_asignacion_con_magic():
     assert "!nvidia-smi" not in codigo
 
 
-def test_normaliza_source_como_string():
-    """Verifica que normaliza correctamente cuando source es un string único.
+def test_source_como_string_equivale_a_source_como_lista():
+    """nbformat admite `source` como string o como lista, y `_codigo_python`
+    tiene que dar lo mismo con las dos formas.
 
-    nbformat acepta tanto listas de líneas como strings únicos. Algunos editores
-    (como NotebookEdit) generan strings, así que la función debe manejar ambos
-    formatos transparentemente, no iterar carácter por carácter.
+    Sin normalización, iterar un string carácter por carácter produce salida
+    diferente: `"%cd\nprint('ok')\n"` carácter por carácter dispara reemplazo
+    de `%` → `pass` en el primer carácter pero el resto se corrompe de forma
+    que igual compila por accidente (`cd / tmp`). La función tiene que
+    producir exactamente la misma salida con ambos formatos.
     """
-    # source como string único (no lista) con un magic
-    nb = {
-        "cells": [
-            {
-                "cell_type": "code",
-                "source": "%cd /tmp\nprint('ok')\n",
-            }
-        ]
+    como_string = {
+        "cell_type": "code",
+        "source": "%cd /tmp\nprint('ok')\n",
     }
-    codigo = _codigo_python(nb)
-    # Debe compilar sin errores (el magic se reemplaza por pass)
-    compile(codigo, "test", "exec")
-    # Debe contener pass en lugar del magic
-    assert "pass" in codigo
-    assert "%cd" not in codigo
-    # Sin normalización, "%cd" se corruptaría a fragmentos de caracteres
+    como_lista = {
+        "cell_type": "code",
+        "source": ["%cd /tmp\n", "print('ok')\n"],
+    }
+
+    # Ambas formas deben producir exactamente la misma salida
+    assert _codigo_python({"cells": [como_string]}) == _codigo_python(
+        {"cells": [como_lista]}
+    )
