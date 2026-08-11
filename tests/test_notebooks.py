@@ -6,6 +6,7 @@ celda; con una celda rota, el error aparece a mitad de una corrida de horas.
 """
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,10 @@ def _codigo_python(notebook: dict) -> str:
     Los magics de IPython (`%cd`) y los comandos de shell (`!pip`) no son Python
     válido, así que se reemplazan por `pass` conservando la indentación: varios
     de ellos viven dentro de un `if`, y borrar la línea dejaría el bloque vacío.
+
+    También maneja asignaciones con magics (ej. `x = !ls`), común en IPython para
+    capturar salida de comandos: se reemplazan por `x = None` para preservar la
+    variable sin sintaxis inválida.
     """
     lineas: list[str] = []
 
@@ -29,8 +34,18 @@ def _codigo_python(notebook: dict) -> str:
 
         for linea in celda["source"]:
             despojada = linea.lstrip()
+            indentacion = " " * (len(linea) - len(despojada))
+
+            # Magic al inicio de línea: reemplazar por pass
             if despojada.startswith(("!", "%")):
-                linea = " " * (len(linea) - len(despojada)) + "pass\n"
+                linea = indentacion + "pass\n"
+            # Asignación con magic: nombre = !comando o nombre = %magic
+            # Se reemplaza por nombre = None para mantener compilabilidad
+            elif re.match(r"^(\w+)\s*=\s*[!%]", despojada):
+                match = re.match(r"^(\w+)\s*=\s*", despojada)
+                nombre = match.group(1)
+                linea = indentacion + f"{nombre} = None\n"
+
             lineas.append(linea)
 
         if lineas and not lineas[-1].endswith("\n"):
@@ -54,3 +69,25 @@ def test_declara_kernelspec(path: Path):
 def test_el_codigo_compila(path: Path):
     notebook = json.loads(path.read_text(encoding="utf-8"))
     compile(_codigo_python(notebook), str(path), "exec")
+
+
+def test_maneja_asignacion_con_magic():
+    """Verifica que se detecte y reemplace correctamente `nombre = !comando`.
+
+    Patrón común en IPython para capturar salida de comandos shell.
+    Sin este manejo, el código generado sería sintácticamente inválido.
+    """
+    nb = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": ["gpu_info = !nvidia-smi -L\n", "print(gpu_info)\n"],
+            }
+        ]
+    }
+    codigo = _codigo_python(nb)
+    # Debe compilar sin errores
+    compile(codigo, "test", "exec")
+    # Y contener la asignación reemplazada
+    assert "gpu_info = None" in codigo
+    assert "!nvidia-smi" not in codigo
