@@ -77,6 +77,38 @@ def test_el_codigo_compila(path: Path):
     compile(_codigo_python(notebook), str(path), "exec")
 
 
+@pytest.mark.parametrize("path", NOTEBOOKS, ids=lambda p: p.name)
+def test_source_de_celdas_es_lista(path: Path):
+    """El `source` de cada celda tiene que ser una lista de líneas, no un string.
+
+    `_codigo_python` tolera ambas formas (ver más abajo), pero esa tolerancia
+    está para no romper si algo se cuela, no para dar por buena la forma no
+    canónica: un `source` como string único es la huella de una herramienta
+    que reescribió la celda entera (pasó durante este mismo trabajo), y diluye
+    los diffs de git porque una edición de una línea se ve como un cambio del
+    párrafo completo.
+    """
+    notebook = json.loads(path.read_text(encoding="utf-8"))
+    for indice, celda in enumerate(notebook["cells"]):
+        assert isinstance(celda["source"], list), (
+            f"{path.name}: la celda {indice} tiene `source` como string, "
+            "no como lista de líneas."
+        )
+
+
+@pytest.mark.parametrize("path", NOTEBOOKS, ids=lambda p: p.name)
+def test_termina_en_salto_de_linea(path: Path):
+    """El archivo tiene que terminar en `\\n`.
+
+    Sin newline final, `git diff` marca "\\ No newline at end of file" en
+    cualquier edición futura de la última línea, lo que ensucia el diff de
+    algo que no cambió. Pasó durante este mismo trabajo con un notebook
+    reescrito a mano.
+    """
+    contenido = path.read_bytes()
+    assert contenido.endswith(b"\n"), f"{path.name} no termina en salto de línea."
+
+
 def test_maneja_asignacion_con_magic():
     """Verifica que se detecte y reemplace correctamente `nombre = !comando`.
 
