@@ -1,0 +1,79 @@
+"""Tests de la recuperación de checkpoints desde /kaggle/input."""
+
+import os
+import stat
+from pathlib import Path
+
+from src.data.kaggle_inputs import restore_checkpoint_from_inputs
+
+
+def _montaje_readonly(root: Path, slug: str, relativo: str, contenido: bytes) -> Path:
+    """Simula un input de Kaggle: archivo dentro de un slug, en modo lectura."""
+    destino = root / slug / relativo
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_bytes(contenido)
+    destino.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+    return destino
+
+
+def test_devuelve_none_cuando_no_hay_inputs(tmp_path: Path):
+    inputs = tmp_path / "input"
+    inputs.mkdir()
+    destino = tmp_path / "runs" / "fasterrcnn_r50fpn" / "last_checkpoint.pth"
+
+    assert restore_checkpoint_from_inputs(inputs, destino) is None
+    assert not destino.exists()
+
+
+def test_devuelve_none_cuando_el_directorio_no_existe(tmp_path: Path):
+    destino = tmp_path / "runs" / "fasterrcnn_r50fpn" / "last_checkpoint.pth"
+
+    assert restore_checkpoint_from_inputs(tmp_path / "no-existe", destino) is None
+
+
+def test_copia_el_checkpoint_y_lo_deja_escribible(tmp_path: Path):
+    inputs = tmp_path / "input"
+    _montaje_readonly(inputs, "checkpoint-fasterrcnn", "last_checkpoint.pth", b"pesos")
+    destino = tmp_path / "runs" / "fasterrcnn_r50fpn" / "last_checkpoint.pth"
+
+    resultado = restore_checkpoint_from_inputs(inputs, destino)
+
+    assert resultado == destino
+    assert destino.read_bytes() == b"pesos"
+    # El bucle sobreescribe el checkpoint en cada época: sin permiso de
+    # escritura la corrida muere con PermissionError al cerrar la primera.
+    assert os.access(destino, os.W_OK)
+
+
+def test_encuentra_el_checkpoint_anidado(tmp_path: Path):
+    inputs = tmp_path / "input"
+    _montaje_readonly(
+        inputs, "mi-version-5", "runs/fasterrcnn_r50fpn/last_checkpoint.pth", b"pesos"
+    )
+    destino = tmp_path / "runs" / "fasterrcnn_r50fpn" / "last_checkpoint.pth"
+
+    assert restore_checkpoint_from_inputs(inputs, destino) == destino
+    assert destino.read_bytes() == b"pesos"
+
+
+def test_no_pisa_un_checkpoint_ya_presente(tmp_path: Path):
+    inputs = tmp_path / "input"
+    _montaje_readonly(inputs, "checkpoint-viejo", "last_checkpoint.pth", b"viejo")
+    destino = tmp_path / "runs" / "fasterrcnn_r50fpn" / "last_checkpoint.pth"
+    destino.parent.mkdir(parents=True)
+    destino.write_bytes(b"nuevo")
+
+    assert restore_checkpoint_from_inputs(inputs, destino) == destino
+    # Lo de /kaggle/working es siempre más reciente que lo montado.
+    assert destino.read_bytes() == b"nuevo"
+
+
+def test_elige_el_ultimo_slug_cuando_hay_varios(tmp_path: Path):
+    inputs = tmp_path / "input"
+    _montaje_readonly(inputs, "mi-version-1", "last_checkpoint.pth", b"vieja")
+    _montaje_readonly(inputs, "mi-version-2", "last_checkpoint.pth", b"nueva")
+    destino = tmp_path / "runs" / "fasterrcnn_r50fpn" / "last_checkpoint.pth"
+
+    restore_checkpoint_from_inputs(inputs, destino)
+
+    assert destino.read_bytes() == b"nueva"
