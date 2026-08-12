@@ -1,0 +1,2 @@
+experiment,family,model,params_M,epochs,imgsz,batch,train_time_min,mAP50,mAP50_95,precision,recall,f1,mAP50_smoke,mAP50_fire,mAP50_95_smoke,mAP50_95_fire,fps,device,split
+fasterrcnn_r50fpn,Dos etapas (CNN),fasterrcnn_resnet50_fpn_v2,43.26,30,640,4,1142.16,0.7747,0.4342,0.817,0.7142,0.7622,0.835,0.7145,0.4911,0.3772,7.99,Tesla T4,val
