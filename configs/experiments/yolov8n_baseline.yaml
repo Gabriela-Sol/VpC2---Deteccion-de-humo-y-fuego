@@ -6,7 +6,7 @@ experiment:
   description: Baseline liviano con YOLOv8 nano.
 
 training:
-  epochs: 30
+  epochs: 50
   imgsz: 640
   batch: 16
   patience: 10
