@@ -219,3 +219,63 @@ def plot_model_comparison(df: pd.DataFrame, out_dir) -> list[Path]:
     rutas.append(_guardar(fig, out_dir / "precision_vs_velocidad.png"))
 
     return rutas
+
+
+# Columna del historial -> título del panel.
+CURVE_PANELS = [
+    ("mAP50", "mAP@0.5"),
+    ("mAP50_95", "mAP@0.5:0.95"),
+    ("precision", "Precisión"),
+    ("recall", "Recall"),
+]
+
+
+def plot_training_curves(historias: pd.DataFrame, out_dir) -> Path:
+    """Evolución por época de las cuatro métricas de validación, los tres modelos juntos.
+
+    `historias` es lo que devuelve `load_training_histories`.
+
+    Los cuatro paneles comparten el eje y en [0, 1.05] a propósito, igual que
+    las figuras de barras. Con autoescala, el panel de mAP@0.5:0.95 —que no
+    pasa de 0.45— estiraría diferencias de centésimas hasta llenar todo el alto
+    y se leería como una brecha enorme entre modelos que están empatados.
+    """
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    experimentos = historias["experiment"].unique().tolist()
+    ciclo = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    # El módulo evita el KeyError si algún día hay más experimentos que colores.
+    colores = {
+        nombre: ciclo[indice % len(ciclo)]
+        for indice, nombre in enumerate(experimentos)
+    }
+
+    fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
+
+    for ax, (columna, titulo) in zip(axes.flat, CURVE_PANELS):
+        for experimento in experimentos:
+            serie = historias[historias["experiment"] == experimento]
+            ax.plot(
+                serie["epoch"],
+                serie[columna],
+                label=experimento,
+                color=colores[experimento],
+                linewidth=1.8,
+            )
+        ax.set_title(titulo)
+        ax.set_ylim(0, 1.05)
+        ax.grid(alpha=0.3)
+
+    for ax in axes[-1]:
+        ax.set_xlabel("Época")
+
+    # Una sola leyenda para los cuatro paneles: repetirla cuatro veces roba
+    # ancho a las curvas sin agregar nada. Va adentro del primer panel y no como
+    # leyenda de figura porque `_guardar` llama a tight_layout, que no reserva
+    # espacio para las leyendas a nivel figura y la terminaría pisando.
+    axes.flat[0].legend(loc="lower right", fontsize=8, framealpha=0.9)
+
+    fig.suptitle("Evolución por época sobre el split de validación")
+
+    return _guardar(fig, out_dir / "curvas_entrenamiento.png")

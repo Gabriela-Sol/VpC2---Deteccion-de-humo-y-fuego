@@ -2,9 +2,9 @@
 
 Kaggle borra `/kaggle/working` al cerrar la sesión. Lo que sobrevive vuelve
 montado en `/kaggle/input`, en modo solo lectura, y llega por dos caminos que
-este módulo trata igual: un Dataset subido a mano (por ejemplo el checkpoint que
-venía de Colab) o el output de una versión guardada con Quick Save y remontado
-con Add Input > Your Work.
+este módulo trata igual: un Dataset subido a mano, por ejemplo un checkpoint
+traído de otra plataforma, o el output de una versión guardada con Quick Save y
+remontado con Add Input > Your Work.
 """
 
 from __future__ import annotations

@@ -12,6 +12,7 @@ from src.reporting.plots import (
     plot_model_comparison,
     plot_pr_curve,
     plot_results_csv,
+    plot_training_curves,
 )
 
 
@@ -166,3 +167,57 @@ def test_plot_model_comparison_genera_las_tres_figuras(tmp_path):
     }
     for ruta in rutas:
         _no_esta_vacio(ruta)
+
+
+def _historias(experimentos=("yolov8n_baseline", "rtdetr_l"), epocas=5):
+    filas = []
+    for desplazamiento, nombre in enumerate(experimentos):
+        for epoca in range(1, epocas + 1):
+            base = 0.1 * epoca + 0.05 * desplazamiento
+            filas.append(
+                {
+                    "experiment": nombre,
+                    "epoch": epoca,
+                    "mAP50": base,
+                    "mAP50_95": base / 2,
+                    "precision": base,
+                    "recall": base * 0.9,
+                }
+            )
+    return pd.DataFrame(filas)
+
+
+def test_plot_training_curves(tmp_path):
+    ruta = plot_training_curves(_historias(), tmp_path)
+
+    assert ruta.name == "curvas_entrenamiento.png"
+    _no_esta_vacio(ruta)
+
+
+def test_plot_training_curves_ancla_los_cuatro_ejes_y_en_cero(tmp_path, monkeypatch):
+    """Los cuatro paneles tienen que compartir el eje y anclado en cero.
+
+    Con autoescala, el panel de mAP@0.5:0.95 —que no pasa de 0.45— estira
+    diferencias de centésimas hasta llenar todo el alto y sugiere una brecha
+    que no existe. Es exactamente lo que pasa hoy en precision_vs_velocidad.png,
+    y es un defecto invisible en un PNG que por lo demás "se generó bien": el
+    archivo existe, no está vacío y el gráfico miente igual.
+
+    Se intercepta `_guardar` porque cierra la figura, así que después de llamar
+    a la función ya no hay ejes que inspeccionar.
+    """
+    from src.reporting import plots
+
+    capturada = {}
+    original = plots._guardar
+
+    def espiar(fig, out_png):
+        capturada["ylims"] = [ax.get_ylim() for ax in fig.axes]
+        return original(fig, out_png)
+
+    monkeypatch.setattr(plots, "_guardar", espiar)
+    plots.plot_training_curves(_historias(), tmp_path)
+
+    assert len(capturada["ylims"]) == 4
+    for limites in capturada["ylims"]:
+        assert limites == (0, 1.05)
