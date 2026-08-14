@@ -38,6 +38,11 @@ weights/
 # Editores
 .vscode/
 
+# Artefactos de Claude Code (specs, plans, configuracion local)
+docs/superpowers/
+.claude/
+CLAUDE.md
+
 # Sistema operativo
 .DS_Store
 Thumbs.db
