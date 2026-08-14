@@ -1,0 +1,4 @@
+experiment,family,model,params_M,epochs,imgsz,batch,train_time_min,mAP50,mAP50_95,precision,recall,f1,mAP50_smoke,mAP50_fire,mAP50_95_smoke,mAP50_95_fire,fps,device,split
+fasterrcnn_r50fpn,Dos etapas (CNN),fasterrcnn_resnet50_fpn_v2,43.26,30,640,4,1111.72,0.7691,0.4244,0.8001,0.7259,0.7612,0.8289,0.7093,0.4752,0.3736,7.35,Tesla T4,val
+rtdetr_l,Transformer,rtdetr-l.pt,31.99,30,640,8,562.91,0.7573,0.4298,0.7454,0.7051,0.7247,0.7983,0.7163,0.4768,0.3829,26.94,Tesla T4,val
+yolov8n_baseline,Una etapa (CNN),yolov8n.pt,3.01,30,640,16,144.8,0.7523,0.4313,0.748,0.683,0.714,0.808,0.696,0.495,0.367,227.27,Tesla T4,val

@@ -1,0 +1,27 @@
+experiment:
+  name: fasterrcnn_r50fpn
+  family: Dos etapas (CNN)
+  model: fasterrcnn_resnet50_fpn_v2
+  description: Detector de dos etapas con ResNet50-FPN v2 preentrenado en COCO.
+
+training:
+  # 30 para igualar el presupuesto del baseline YOLOv8n y de RT-DETR-l, así la
+  # comparación no premia al modelo que entrenó más tiempo.
+  epochs: 30
+  imgsz: 640
+  max_size: 1024
+  batch: 4
+  workers: 2
+  optimizer: sgd
+  lr0: 0.005
+  momentum: 0.9
+  weight_decay: 0.0005
+  lr_scheduler: cosine
+  backbone: resnet50_fpn_v2
+  trainable_backbone_layers: 3
+  amp: true
+  seed: 42
+
+output:
+  project: /content/drive/MyDrive/VCII_DFire/runs
+  save_weights: true
