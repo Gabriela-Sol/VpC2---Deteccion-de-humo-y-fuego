@@ -1,2 +1,2 @@
-model,experiment,best_epoch,precision,recall,f1,map50,map50_95
-YOLO26s,yolo26s_baseline,40,0.77416,0.71513,0.7434751335199994,0.77815,0.45876
+experiment,family,model,params_M,epochs,imgsz,batch,train_time_min,mAP50,mAP50_95,precision,recall,f1,mAP50_smoke,mAP50_fire,mAP50_95_smoke,mAP50_95_fire,fps,device,split,best_epoch
+yolo26s_baseline,YOLO26,YOLO26s,9.95,50,640,16,313.56,0.7766598473646613,0.45889894378773644,0.7750580171253509,0.7137242354349431,0.7431277337423944,0.82798,0.72534,0.52748,0.39032,187.96,Tesla T4,val,40
