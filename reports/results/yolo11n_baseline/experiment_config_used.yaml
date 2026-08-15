@@ -1,0 +1,14 @@
+experiment:
+  name: yolo11n_baseline
+  family: YOLO11
+  model: yolo11n.pt
+  description: YOLO11n entrenado sobre D-Fire.
+training:
+  epochs: 50
+  imgsz: 640
+  batch: 16
+  patience: 10
+  optimizer: auto
+  lr0: 0.01
+  seed: 42
+  save_period: -1
