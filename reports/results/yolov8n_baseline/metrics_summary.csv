@@ -1,2 +1,2 @@
-experiment,family,model,params_M,epochs,imgsz,batch,train_time_min,mAP50,mAP50_95,precision,recall,f1,mAP50_smoke,mAP50_fire,mAP50_95_smoke,mAP50_95_fire,fps,device,split
-yolov8n_baseline,Una etapa (CNN),yolov8n.pt,3.01,30,640,16,144.8,0.7523,0.4313,0.748,0.683,0.714,0.808,0.696,0.495,0.367,227.27,Tesla T4,val
+model,experiment,best_epoch,precision,recall,f1,map50,map50_95
+YOLOv8n,yolov8n_baseline,50,0.778,0.69305,0.7330721593419668,0.77054,0.44699

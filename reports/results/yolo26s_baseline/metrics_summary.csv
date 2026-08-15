@@ -1,0 +1,2 @@
+model,experiment,best_epoch,precision,recall,f1,map50,map50_95
+YOLO26s,yolo26s_baseline,40,0.77416,0.71513,0.7434751335199994,0.77815,0.45876

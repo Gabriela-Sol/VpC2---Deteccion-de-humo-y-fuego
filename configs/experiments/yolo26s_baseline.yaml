@@ -1,13 +1,13 @@
 experiment:
-  name: yolov8n_baseline
-  family: YOLOv8
-  model: yolov8n.pt
-  description: YOLOv8n entrenado durante 50 épocas sobre D-Fire.
+  name: yolo26s_baseline
+  family: YOLO26
+  model: yolo26s.pt
+  description: YOLO26s entrenado durante 50 épocas sobre D-Fire.
 training:
   epochs: 50
   imgsz: 640
   batch: 16
-  patience: 10
+  patience: 15
   optimizer: auto
   lr0: 0.01
   seed: 42
