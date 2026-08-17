@@ -276,9 +276,6 @@ def plot_training_curves(historias: pd.DataFrame, out_dir) -> Path:
     # espacio para las leyendas a nivel figura y la terminaría pisando.
     axes.flat[0].legend(loc="lower right", fontsize=8, framealpha=0.9)
 
-    # Estas curvas salen de los results.csv: son las métricas que cada
-    # entrenamiento midió sobre val época a época. La evaluación final (la de
-    # las tablas y el resto de las figuras) es sobre test y no tiene curva.
-    fig.suptitle("Evolución durante el entrenamiento (métricas por época sobre val)")
+    fig.suptitle("Evolución por época sobre el split de validación")
 
     return _guardar(fig, out_dir / "curvas_entrenamiento.png")
