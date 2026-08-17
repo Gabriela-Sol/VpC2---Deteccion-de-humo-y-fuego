@@ -1,2 +1,2 @@
 experiment,family,model,params_M,epochs,imgsz,batch,train_time_min,mAP50,mAP50_95,precision,recall,f1,mAP50_smoke,mAP50_fire,mAP50_95_smoke,mAP50_95_fire,fps,device,split
-rtdetr_l,Transformer,rtdetr-l.pt,31.99,30,640,8,562.91,0.7573,0.4298,0.7454,0.7051,0.7247,0.7983,0.7163,0.4768,0.3829,26.94,Tesla T4,val
+rtdetr_l,Transformer,rtdetr-l.pt,31.99,30,640,8,562.91,0.7509,0.415,0.7574,0.69,0.7222,0.7882,0.7137,0.4619,0.3682,29.49,Tesla T4,val
