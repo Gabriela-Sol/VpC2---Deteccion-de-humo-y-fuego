@@ -477,18 +477,18 @@ Fig.~\ref{fig:bbox_areas}: las cajas de fuego son mayoritariamente muy
 pequeñas, y la detección de objetos pequeños es una limitación conocida de
 los detectores evaluados a resolución de entrada moderada.
 
-Las matrices de confusión refuerzan este diagnóstico: la confusión entre
-clases es prácticamente nula (del orden del 1\%), de modo que el error
-dominante no es clasificar mal un objeto detectado sino omitirlo: los
-valores de recall de test indican que entre el 27\% y el 31\% de las
-instancias anotadas no son detectadas, según el modelo. Para un sistema de
-alerta temprana este es el tipo de error más costoso, por lo que mejorar el
-recall constituye la principal línea de mejora.
+Las matrices de confusión sobre test refuerzan este diagnóstico: la
+confusión entre clases es prácticamente nula (del orden del 1\%), de modo
+que el error dominante no es clasificar mal un objeto detectado sino
+omitirlo: a confianza $\geq 0.25$ queda sin detectar el 12--18\% de las
+cajas de humo y el 14--30\% de las de fuego, según el modelo. Para un
+sistema de alerta temprana este es el tipo de error más costoso, por lo que
+mejorar el recall constituye la principal línea de mejora.
 
 \subsection{Análisis del entrenamiento}\label{sec:entrenamiento}
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=0.96\columnwidth]{curvas_entrenamiento.png}}
+\centerline{\includegraphics[width=0.92\columnwidth]{curvas_entrenamiento.png}}
 \caption{Evolución por época de mAP@0.5, mAP@0.5:0.95, precisión y recall,
 calculados sobre el conjunto de validación durante el entrenamiento de los
 cinco modelos.}
@@ -610,9 +610,9 @@ a limitaciones de los detectores.
 Se observa además una diferencia sistemática en la calibración de las
 confianzas: Faster R-CNN asigna valores cercanos a 1.0 a sus detecciones,
 RT-DETR-L valores intermedios y los YOLO valores más conservadores
-(típicamente entre 0.3 y 0.8). Esta diferencia no afecta el mAP, pero sí es
-relevante en la práctica: el umbral de alarma de un sistema en producción debe calibrarse
-por modelo y no puede transferirse de una arquitectura a otra.
+(típicamente entre 0.3 y 0.8). Esta diferencia no afecta el mAP, pero sí a
+la práctica: el umbral de alarma de un sistema en producción debe
+calibrarse por modelo.
 
 
 % ============================================================
@@ -652,8 +652,8 @@ resolución de entrada o la capacidad del modelo son las mejoras candidatas.
 
 \item \textbf{El error dominante es la omisión, no la confusión entre
 clases.} La confusión \textit{smoke}--\textit{fire} es del orden del 1\%,
-mientras que las instancias no detectadas se ubican entre el 27\% y el 31\%
-según el modelo. Dado que el falso negativo es el error más costoso en
+mientras que las omisiones alcanzan el 12--18\% en humo y el 14--30\% en
+fuego según el modelo. Dado que el falso negativo es el error más costoso en
 alerta temprana, la principal línea de mejora es el recall; la ausencia de
 falsos positivos observada en escenas negativas sugiere margen para operar
 con umbrales más bajos.
