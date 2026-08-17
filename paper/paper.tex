@@ -19,45 +19,25 @@
 }
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\renewcommand{\tablename}{Tabla}
 \begin{document}
 
 \title{Detección de humo y fuego mediante arquitecturas profundas de detección de objetos}
 
-\author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
+\author{\IEEEauthorblockN{Marcos Lund}
+\IEEEauthorblockA{N° SIU a2408 \\
+Buenos Aires, Argentina \\
+lundmarcos@gmail.com}
 \and
-\IEEEauthorblockN{2\textsuperscript{nd} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
+\IEEEauthorblockN{Tomás Agustín Mc Nally}
+\IEEEauthorblockA{N° SIU a2420 \\
+Buenos Aires, Argentina \\
+mcnallytomas@gmail.com}
 \and
-\IEEEauthorblockN{3\textsuperscript{rd} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{4\textsuperscript{th} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{5\textsuperscript{th} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{6\textsuperscript{th} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
+\IEEEauthorblockN{Gabriela Sol Salazar}
+\IEEEauthorblockA{N° SIU a2414 \\
+Buenos Aires, Argentina \\
+solgab.salazar@gmail.com}
 }
 
 \maketitle
@@ -74,8 +54,8 @@ detección: YOLOv8n, YOLO11n y YOLO26s (una etapa), Faster R-CNN (dos etapas)
 y RT-DETR-L (Transformer end-to-end).
 
 Los cinco modelos alcanzan un desempeño comparable sobre el conjunto de
-validación (mAP@0.5 entre 0.757 y 0.778), con diferencias de velocidad de
-inferencia de hasta un factor 60. Los resultados indican que la calidad de
+test (mAP@0.5 entre 0.749 y 0.773), con diferencias de velocidad de
+inferencia de hasta un factor 66. Los resultados indican que la calidad de
 las anotaciones y el tamaño de los objetos condicionan el desempeño más que
 la elección de la arquitectura, y que los modelos livianos de una etapa
 ofrecen el mejor compromiso entre detección y costo computacional.
@@ -134,7 +114,7 @@ y midieron el compromiso entre capacidad de detección y tiempo de
 inferencia en hardware embebido. Una de sus conclusiones principales es que
 los modelos convolucionales compactos alcanzan un desempeño competitivo
 frente a variantes de mayor tamaño, con tiempos de inferencia compatibles
-con la operación en tiempo real sobre dispositivos de bajo costo. Como parte
+con hardware de bajo costo. Como parte
 de ese trabajo construyeron y publicaron el conjunto de datos D-Fire, con
 más de 21\,000 imágenes anotadas, que es el que se utiliza en el presente
 estudio.
@@ -217,9 +197,9 @@ Total & 21\,527 \\
 \end{table}
 
 El conjunto de entrenamiento se utiliza para ajustar los modelos, el de
-validación para compararlos y seleccionar el mejor punto de control, y el de
-test se reserva para la evaluación cualitativa de la
-Sección~\ref{sec:cualitativa}.
+validación para monitorear el entrenamiento y seleccionar el mejor punto de
+control, y el de test se reserva para la evaluación final, tanto
+cuantitativa como cualitativa.
 
 Cabe una aclaración sobre la composición del conjunto: una parte sustancial
 de las imágenes proviene de cámaras fijas que registraron la misma escena en
@@ -337,8 +317,11 @@ variantes de mayor tamaño de la arquitectura.
 
 Faster R-CNN emplea una estrategia de dos etapas: una Region Proposal
 Network genera regiones candidatas que luego son clasificadas y refinadas
-\cite{b2}. Se utiliza una implementación basada en un backbone ResNet-50 con
-Feature Pyramid Network.
+\cite{b2}. Este refinamiento en dos pasos, junto con las propuestas densas
+sobre una pirámide de características, le otorga alta calidad de
+localización y buen desempeño sobre objetos pequeños, a costa de un mayor
+tiempo de inferencia. Se utiliza una implementación basada en un backbone
+ResNet-50 con Feature Pyramid Network.
 
 % ============================================================
 % C.5 RT-DETR
@@ -348,8 +331,11 @@ Feature Pyramid Network.
 
 RT-DETR pertenece a una familia de detectores basados en Transformers,
 desarrollada para permitir detección end-to-end manteniendo velocidades de
-procesamiento adecuadas para aplicaciones en tiempo real \cite{b3}. Se
-utiliza la variante RT-DETR-L.
+procesamiento adecuadas para aplicaciones en tiempo real \cite{b3}. Sus
+puntos fuertes son la detección end-to-end, sin post-procesamiento de
+supresión de no máximos, y el uso de atención global, que incorpora contexto
+de toda la escena, potencialmente útil para fenómenos difusos como el humo.
+Se utiliza la variante RT-DETR-L.
 
 
 \subsection{Protocolo experimental}
@@ -384,9 +370,10 @@ presupuesto.
 
 De cada experimento se selecciona el punto de control con mejor mAP@0.5:0.95
 sobre validación y se versionan los pesos, curvas de entrenamiento, métricas
-y matrices de confusión. La comparación cuantitativa se realiza sobre el
-conjunto de validación, mientras que el de test se reserva para la
-evaluación cualitativa.
+y matrices de confusión. Todas las métricas reportadas en la
+Sección~\ref{sec:resultados} se calculan sobre el conjunto de test, que no
+participó del entrenamiento ni de la selección de puntos de control; la
+evaluación cualitativa utiliza el mismo conjunto.
 
 
 % ============================================================
@@ -435,26 +422,26 @@ computacional.
 \subsection{Comparación cuantitativa}
 
 La Tabla~\ref{tab:metricas} resume las métricas obtenidas por cada modelo
-sobre el conjunto de validación, evaluadas en el mejor punto de control de
-cada entrenamiento.
+sobre el conjunto de test, evaluadas en el mejor punto de control de cada
+entrenamiento.
 
 \begin{table}[htbp]
-\caption{Métricas de detección sobre el conjunto de validación}
+\caption{Métricas de detección sobre el conjunto de test}
 \begin{center}
 \begin{tabular}{|l|c|c|c|c|c|}
 \hline
 \textbf{Modelo} & \textbf{P} & \textbf{R} & \textbf{F1} &
 \textbf{mAP@0.5} & \textbf{mAP@0.5:0.95} \\
 \hline
-YOLOv8n      & 0.780 & 0.691 & 0.733 & 0.771 & 0.447 \\
+YOLOv8n      & 0.766 & 0.688 & 0.725 & 0.759 & 0.434 \\
 \hline
-YOLOv11n      & 0.752 & 0.69 & 0.719 & 0.753 & 0.433 \\
+YOLO11n      & 0.752 & 0.690 & 0.720 & 0.753 & 0.433 \\
 \hline
-YOLO26s      & 0.775 & 0.714 & 0.743 & \textbf{0.778} & \textbf{0.459} \\
+YOLO26s      & \textbf{0.786} & 0.700 & 0.740 & \textbf{0.773} & \textbf{0.443} \\
 \hline
-Faster R-CNN & \textbf{0.800} & \textbf{0.726} & \textbf{0.761} & 0.769 & 0.424 \\
+Faster R-CNN & \textbf{0.786} & \textbf{0.726} & \textbf{0.755} & 0.749 & 0.403 \\
 \hline
-RT-DETR-L    & 0.745 & 0.705 & 0.725 & 0.757 & 0.430 \\
+RT-DETR-L    & 0.757 & 0.690 & 0.722 & 0.751 & 0.415 \\
 \hline
 \end{tabular}
 \label{tab:metricas}
@@ -462,8 +449,8 @@ RT-DETR-L    & 0.745 & 0.705 & 0.725 & 0.757 & 0.430 \\
 \end{table}
 
 El primer resultado destacable es la homogeneidad de los valores: el rango de
-mAP@0.5 entre el mejor y el peor modelo es de apenas 2.1 puntos porcentuales
-(0.757 a 0.778) y el de mAP@0.5:0.95 de 3.5 puntos (0.424 a 0.459). Cinco
+mAP@0.5 entre el mejor y el peor modelo es de apenas 2.4 puntos porcentuales
+(0.749 a 0.773) y el de mAP@0.5:0.95 de 4 puntos (0.403 a 0.443). Cinco
 arquitecturas que difieren en paradigma y en más de un orden de magnitud de
 tamaño (de 2.6 a 43.3 millones de parámetros) convergen a un desempeño casi
 indistinguible, lo que sugiere que el techo está determinado por las
@@ -471,46 +458,56 @@ características del conjunto de datos (objetos pequeños, límites difusos del
 humo y errores de anotación) más que por la capacidad de los modelos.
 
 Dentro de ese rango acotado se observan dos comportamientos diferenciados.
-YOLO26s obtiene los mejores valores de mAP en ambos umbrales (0.778 y 0.459),
-consistente con ser el YOLO de mayor capacidad evaluado. Faster R-CNN, en
-cambio, lidera precisión (0.800), recall (0.726) y F1 (0.761) pero registra el
-peor mAP@0.5:0.95 (0.424): su punto de operación clasifica y detecta bien,
-pero sus cajas pierden solapamiento frente a las de los YOLO cuando el
-criterio de IoU se vuelve más exigente. Dado que cada arquitectura se entrenó
+YOLO26s obtiene los mejores valores de mAP en ambos umbrales (0.773 y 0.443)
+y la mejor precisión (0.786, prácticamente empatada con Faster R-CNN),
+consistente con ser el YOLO de mayor capacidad evaluado. Faster R-CNN lidera
+recall (0.726) y F1 (0.755) pero registra el peor mAP en ambos umbrales
+(0.749 y 0.403): su punto de operación clasifica y detecta bien, pero sus
+cajas pierden solapamiento frente a las de los YOLO cuando el criterio de
+IoU se vuelve más exigente. Dado que cada arquitectura se entrenó
 una única vez, estas diferencias menores deben interpretarse como indicativas
 y no como estadísticamente significativas.
 
 El desglose por clase es consistente entre modelos y resulta más informativo
 que las diferencias entre arquitecturas: el mAP@0.5 de \textit{smoke} se
-ubica entre 0.798 y 0.828 y el de \textit{fire} entre 0.709 y 0.725, una
-brecha de unos 10 puntos que ningún modelo logra cerrar. Esta dificultad
+ubica entre 0.788 y 0.841 y el de \textit{fire} entre 0.685 y 0.714, una
+brecha de más de 10 puntos que ningún modelo logra cerrar. Esta dificultad
 estructural se explica por el análisis exploratorio de la
 Fig.~\ref{fig:bbox_areas}: las cajas de fuego son mayoritariamente muy
 pequeñas, y la detección de objetos pequeños es una limitación conocida de
 los detectores evaluados a resolución de entrada moderada.
 
 Las matrices de confusión refuerzan este diagnóstico: la confusión entre
-clases es prácticamente nula (del orden del 1\% en YOLOv8n, con un patrón
-análogo en el resto), de modo que el error dominante no es clasificar mal un
-objeto detectado sino omitirlo (el 21\% de las instancias de humo y el 29\%
-de las de fuego en YOLOv8n). Para un sistema de alerta temprana este es el
-tipo de error más costoso, por lo que mejorar el recall constituye la
-principal línea de mejora.
+clases es prácticamente nula (del orden del 1\%), de modo que el error
+dominante no es clasificar mal un objeto detectado sino omitirlo: los
+valores de recall de test indican que entre el 27\% y el 31\% de las
+instancias anotadas no son detectadas, según el modelo. Para un sistema de
+alerta temprana este es el tipo de error más costoso, por lo que mejorar el
+recall constituye la principal línea de mejora.
 
 \subsection{Análisis del entrenamiento}\label{sec:entrenamiento}
 
-La evolución por época de las métricas de validación revela dinámicas de
-convergencia muy distintas entre paradigmas: Faster R-CNN parte desde la
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.96\columnwidth]{curvas_entrenamiento.png}}
+\caption{Evolución por época de mAP@0.5, mAP@0.5:0.95, precisión y recall,
+calculados sobre el conjunto de validación durante el entrenamiento de los
+cinco modelos.}
+\label{fig:curvas}
+\end{figure}
+
+La Fig.~\ref{fig:curvas} muestra la evolución por época de las métricas de
+validación durante el entrenamiento y revela dinámicas de convergencia muy
+distintas entre paradigmas: Faster R-CNN parte desde la
 primera época con un mAP@0.5 cercano a 0.69, dado que su backbone
 preentrenado y su esquema de propuestas transfieren de inmediato al nuevo
-dominio, mientras que YOLOv8n comienza en torno a 0.25 y RT-DETR-L por
+dominio, mientras que los YOLO comienzan entre 0.30 y 0.45 y RT-DETR-L por
 debajo de 0.05, con el arranque lento característico de los Transformers.
 Hacia el final del entrenamiento las curvas convergen a valores
-prácticamente indistinguibles, lo que confirma que el presupuesto de épocas
-fue suficiente para todos los paradigmas y respalda la observación anterior:
-ninguna arquitectura supera de manera sostenida el techo común. YOLO26s
-alcanzó su mejor punto de control en la época 40 de 50, con las métricas ya
-en meseta.
+prácticamente indistinguibles en las cuatro métricas, lo que confirma que el
+presupuesto de épocas fue suficiente para todos los paradigmas y respalda la
+observación anterior: ninguna arquitectura supera de manera sostenida el
+techo común. YOLO26s alcanzó su mejor punto de control en la época 40 de 50,
+con las métricas ya en meseta.
 
 \subsection{Compromiso entre desempeño y velocidad}
 
@@ -526,37 +523,36 @@ convierte en el principal criterio de selección práctica.
 \textbf{Modelo} & \textbf{Parám. (M)} & \textbf{Épocas} &
 \textbf{Entren. (min)} & \textbf{FPS} \\
 \hline
-YOLOv8n      & 3.0  & 50 & 243  & \textbf{455.0} \\
+YOLOv8n      & 3.0  & 50 & 243  & \textbf{457.2} \\
 \hline
-YOLOv11n      & 2.6  & 50 & 251   & 359.46   \\
+YOLO11n      & 2.6  & 50 & 251  & 423.0 \\
 \hline
-YOLO26s      & 10.0 & 50 & 314  & 188.0 \\
+YOLO26s      & 10.0 & 50 & 314  & 179.7 \\
 \hline
-Faster R-CNN & 43.3 & 30 & 1112 & 7.4  \\
+Faster R-CNN & 43.3 & 30 & 1112 & 7.0  \\
 \hline
-RT-DETR-L    & 32.0 & 30 & 563  & 26.9 \\
+RT-DETR-L    & 32.0 & 30 & 563  & 29.5 \\
 \hline
 \end{tabular}
 \label{tab:eficiencia}
 \end{center}
 \end{table}
 
-El contraste es marcado: YOLOv8n procesa 455 imágenes por segundo, 60 veces
-más que Faster R-CNN (7.4 FPS), y sin embargo lo iguala o supera en mAP
-(0.771 frente a 0.769 en mAP@0.5 y 0.447 frente a 0.424 en mAP@0.5:0.95). La
-ventaja de Faster R-CNN en F1 (+2.9 puntos sobre YOLOv8n) podría justificar
-su uso únicamente en procesamiento diferido; su costo de entrenamiento
-también es muy superior (18.5 frente a 4 horas). YOLO26s ofrece un punto
-intermedio atractivo: el mejor mAP de la comparación manteniendo 188 FPS.
-Para el caso de uso que motiva este trabajo, el monitoreo simultáneo de
-múltiples cámaras en tiempo real, los modelos YOLO dominan claramente el
-compromiso desempeño-velocidad.
+El contraste es marcado: YOLOv8n procesa 457 imágenes por segundo, 66 veces
+más que Faster R-CNN (7.0 FPS), y sin embargo lo supera en mAP (0.759 frente
+a 0.749 en mAP@0.5 y 0.434 frente a 0.403 en mAP@0.5:0.95). La ventaja de
+Faster R-CNN en F1 (+3 puntos sobre YOLOv8n) podría justificar su uso
+únicamente en procesamiento diferido; su costo de entrenamiento también es
+muy superior (18.5 frente a 4 horas). YOLO26s ofrece un punto intermedio
+atractivo: el mejor mAP de la comparación manteniendo 180 FPS. Para el caso
+de uso que motiva este trabajo, el monitoreo simultáneo de múltiples cámaras
+en tiempo real, los modelos YOLO dominan claramente el compromiso
+desempeño-velocidad.
 
 \subsection{Evaluación cualitativa}\label{sec:cualitativa}
 
 Para complementar las métricas se comparan las predicciones de los cinco
-modelos sobre imágenes del conjunto de test, que no participó del
-entrenamiento ni de la selección de puntos de control.
+modelos sobre imágenes del conjunto de test.
 
 Un primer patrón recurrente aparece en las escenas con múltiples focos: las
 variantes nano de las generaciones YOLO más antiguas (YOLOv8n y YOLO11n)
@@ -564,11 +560,11 @@ recuperan solo la instancia principal de fuego, mientras que YOLO26s detecta
 varios focos y Faster R-CNN y RT-DETR-L capturan también los secundarios (en
 un caso representativo con seis objetos anotados, una única detección frente
 a ocho). Esto es coherente con la Tabla~\ref{tab:metricas}, donde ambos
-nano registran el recall más bajo (0.691) y Faster R-CNN el más alto
-(0.726).
+nano registran los recalls más bajos (0.688 y 0.690) y Faster R-CNN el más
+alto (0.726).
 
 \begin{figure*}[!t]
-\centerline{\includegraphics[width=0.7\textwidth]{cualitativa_objetos_pequenos_AoF07964.png}}
+\centerline{\includegraphics[width=0.6\textwidth]{cualitativa_objetos_pequenos_AoF07964.png}}
 \caption{Escena con objetos pequeños (test/AoF07964, confianza $\geq 0.25$):
 dos columnas de humo distantes que ocupan menos del 1\% de la imagen. Los
 tres modelos YOLO no producen ninguna detección, RT-DETR-L recupera una de
@@ -594,7 +590,7 @@ positivos, comportamiento atribuible a la gran proporción de negativas del
 conjunto de entrenamiento (46\%).
 
 \begin{figure*}[!t]
-\centerline{\includegraphics[width=0.7\textwidth]{cualitativa_solo_fuego_WEB11741.png}}
+\centerline{\includegraphics[width=0.6\textwidth]{cualitativa_solo_fuego_WEB11741.png}}
 \caption{Error de anotación de origen (test/WEB11741, confianza $\geq 0.25$):
 el ground truth etiqueta como \textit{fire} dos regiones que contienen humo.
 Los cinco modelos predicen \textit{smoke} sobre esas regiones, contradiciendo
@@ -614,9 +610,8 @@ a limitaciones de los detectores.
 Se observa además una diferencia sistemática en la calibración de las
 confianzas: Faster R-CNN asigna valores cercanos a 1.0 a sus detecciones,
 RT-DETR-L valores intermedios y los YOLO valores más conservadores
-(típicamente entre 0.3 y 0.8), posiblemente influida por la capacidad de
-cada modelo. Esta diferencia no afecta el mAP, pero sí es relevante en la
-práctica: el umbral de alarma de un sistema en producción debe calibrarse
+(típicamente entre 0.3 y 0.8). Esta diferencia no afecta el mAP, pero sí es
+relevante en la práctica: el umbral de alarma de un sistema en producción debe calibrarse
 por modelo y no puede transferirse de una arquitectura a otra.
 
 
@@ -632,24 +627,24 @@ Del trabajo realizado se extraen las siguientes conclusiones:
 
 \item \textbf{La elección de arquitectura no es el factor dominante del
 desempeño.} Cinco modelos que difieren en paradigma y en más de un orden de
-magnitud en parámetros convergen a un rango de 2.1 puntos en mAP@0.5 (0.757
-a 0.778). El techo común, junto con la evidencia de errores de anotación,
+magnitud en parámetros convergen a un rango de 2.4 puntos en mAP@0.5 (0.749
+a 0.773). El techo común, junto con la evidencia de errores de anotación,
 indica que la calidad del dataset condiciona el resultado más que la
-capacidad del modelo, y que el esfuerzo de mejora debería dirigirse a los
-datos antes que a arquitecturas más grandes.
+capacidad del modelo: el esfuerzo de mejora debería dirigirse a los datos
+antes que a arquitecturas más grandes.
 
 \item \textbf{Los modelos livianos de una etapa ofrecen el mejor compromiso
-para la aplicación.} YOLOv8n alcanza el 97\% del mejor mAP@0.5:0.95 con 3M
-de parámetros y 455 FPS, 60 veces más rápido que Faster R-CNN, al que además
-supera en mAP; YOLO26s obtiene el mejor mAP absoluto (0.778 y 0.459)
-manteniendo 188 FPS. Para monitoreo de múltiples cámaras en tiempo real los
+para la aplicación.} YOLOv8n alcanza el 98\% del mejor mAP@0.5:0.95 con 3M
+de parámetros y 457 FPS, 66 veces más rápido que Faster R-CNN, al que además
+supera en mAP; YOLO26s obtiene el mejor mAP absoluto (0.773 y 0.443)
+manteniendo 180 FPS. Para monitoreo de múltiples cámaras en tiempo real los
 YOLO son la elección justificada por las métricas; Faster R-CNN solo se
-justifica en procesamiento diferido, donde su F1 superior (0.761) y su
+justifica en procesamiento diferido, donde su F1 superior (0.755) y su
 ventaja en objetos pequeños compensan su costo.
 
 \item \textbf{El fuego es estructuralmente más difícil de detectar que el
-humo.} La brecha de unos 10 puntos de mAP@0.5 entre clases (0.798--0.828
-para \textit{smoke} frente a 0.709--0.725 para \textit{fire}) se repite en
+humo.} La brecha de más de 10 puntos de mAP@0.5 entre clases (0.788--0.841
+para \textit{smoke} frente a 0.685--0.714 para \textit{fire}) se repite en
 los cinco modelos y se explica por el tamaño de las cajas de fuego,
 mayoritariamente muy pequeñas. La evaluación cualitativa confirma que los
 objetos diminutos son el punto ciego de los YOLO livianos; aumentar la
@@ -657,15 +652,15 @@ resolución de entrada o la capacidad del modelo son las mejoras candidatas.
 
 \item \textbf{El error dominante es la omisión, no la confusión entre
 clases.} La confusión \textit{smoke}--\textit{fire} es del orden del 1\%,
-mientras que las instancias no detectadas alcanzan el 21\% en humo y el 29\%
-en fuego (YOLOv8n). Dado que el falso negativo es el error más costoso en
+mientras que las instancias no detectadas se ubican entre el 27\% y el 31\%
+según el modelo. Dado que el falso negativo es el error más costoso en
 alerta temprana, la principal línea de mejora es el recall; la ausencia de
 falsos positivos observada en escenas negativas sugiere margen para operar
 con umbrales más bajos.
 
 \item \textbf{Las métricas constituyen una cota con doble sesgo y deben
 interpretarse con cautela.} La partición a nivel de imagen de secuencias
-temporales puede inflar optimistamente los resultados, mientras que los
+temporales puede sesgar los resultados al alza, mientras que los
 errores de anotación penalizan predicciones perceptualmente correctas, como
 el caso en el que los cinco modelos revierten una etiqueta errónea. Como
 trabajo futuro se propone re-particionar el conjunto por cámara y secuencia,
@@ -684,23 +679,21 @@ para dotar de significancia estadística a la comparación.
 \bibitem{b1}
 J. Redmon, S. Divvala, R. Girshick, and A. Farhadi,
 ``You only look once: Unified, real-time object detection,''
-in \textit{Proceedings of the IEEE Conference on Computer Vision and Pattern
-Recognition},
-pp. 779--788, 2016.
+in \textit{Proc. IEEE Conf. on Computer Vision and Pattern Recognition
+(CVPR)}, pp. 779--788, 2016.
 
 \bibitem{b2}
 S. Ren, K. He, R. Girshick, and J. Sun,
 ``Faster R-CNN: Towards real-time object detection with region proposal
 networks,''
-in \textit{Advances in Neural Information Processing Systems},
-vol. 28, 2015.
+in \textit{Advances in Neural Information Processing Systems}, vol. 28,
+2015.
 
 \bibitem{b3}
 Y. Zhao, W. Lv, S. Xu, J. Wei, G. Wang, Q. Dang, Y. Liu, and J. Chen,
 ``DETRs beat YOLOs on real-time object detection,''
-in \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and
-Pattern Recognition},
-pp. 16965--16974, 2024.
+in \textit{Proc. IEEE/CVF Conf. on Computer Vision and Pattern Recognition
+(CVPR)}, pp. 16965--16974, 2024.
 
 \bibitem{b4}
 P. V. A. B. de Venâncio, A. C. Lisboa, and A. V. Barbosa,
