@@ -186,7 +186,7 @@ def plot_model_comparison(df: pd.DataFrame, out_dir) -> list[Path]:
     ax.set_xticks(posiciones, etiquetas, rotation=15, ha="right")
     ax.set_ylabel("mAP")
     ax.set_ylim(0, 1.05)
-    ax.set_title("Desempeño por modelo (split de validación)")
+    ax.set_title("Desempeño por modelo (split de test)")
     ax.legend()
     ax.grid(axis="y", alpha=0.3)
     rutas.append(_guardar(fig, out_dir / "map_por_modelo.png"))

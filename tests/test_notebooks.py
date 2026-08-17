@@ -38,16 +38,27 @@ def _codigo_python(notebook: dict) -> str:
         if isinstance(source, str):
             source = source.splitlines(keepends=True)
 
+        continuacion_shell = False
+
         for linea in source:
             despojada = linea.lstrip()
             indentacion = " " * (len(linea) - len(despojada))
 
+            # Un `!comando \` sigue en las líneas siguientes mientras cada una
+            # termine en `\`: todas pertenecen al shell y se descartan, porque
+            # la primera ya quedó reemplazada por `pass`.
+            if continuacion_shell:
+                continuacion_shell = despojada.rstrip().endswith("\\")
+                continue
+
             # Magic al inicio de línea: reemplazar por pass
             if despojada.startswith(("!", "%")):
+                continuacion_shell = despojada.rstrip().endswith("\\")
                 linea = indentacion + "pass\n"
             # Asignación con magic: nombre = !comando o nombre = %magic
             # Se reemplaza por nombre = None para mantener compilabilidad
             elif re.match(r"^(\w+)\s*=\s*[!%]", despojada):
+                continuacion_shell = despojada.rstrip().endswith("\\")
                 match = re.match(r"^(\w+)\s*=\s*", despojada)
                 nombre = match.group(1)
                 linea = indentacion + f"{nombre} = None\n"
@@ -129,6 +140,32 @@ def test_maneja_asignacion_con_magic():
     # Y contener la asignación reemplazada
     assert "gpu_info = None" in codigo
     assert "!nvidia-smi" not in codigo
+
+
+def test_maneja_shell_multilinea_con_continuacion():
+    """`!comando \\` sigue en las líneas siguientes: son shell, no Python.
+
+    Sin este manejo, la primera línea se reemplaza por `pass` pero las
+    continuaciones quedan como texto suelto que no compila (pasó con el
+    `!git clone \\` multilínea del notebook 07).
+    """
+    nb = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": [
+                    "!git clone \\\n",
+                    "    --branch main \\\n",
+                    "    https://ejemplo/repo.git\n",
+                    "print('ok')\n",
+                ],
+            }
+        ]
+    }
+    codigo = _codigo_python(nb)
+    compile(codigo, "test", "exec")
+    assert "--branch" not in codigo
+    assert "print('ok')" in codigo
 
 
 def test_source_como_string_equivale_a_source_como_lista():
