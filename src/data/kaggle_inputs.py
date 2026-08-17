@@ -37,6 +37,18 @@ def restore_checkpoint_from_inputs(inputs_root: Path, dest_path: Path) -> Path |
     if not candidatos:
         return None
 
+    # Los outputs de notebook (Add Input > Your Work) se montan bajo
+    # notebooks/<usuario>/<slug>/ y traen la corrida más avanzada. Un Dataset
+    # subido a mano puede tener un mtime posterior aunque su checkpoint sea más
+    # viejo, porque Kaggle estampa la fecha de procesamiento de la subida; por
+    # eso los outputs de notebook tienen prioridad y el mtime solo desempata
+    # dentro del grupo que quede.
+    de_notebooks = [
+        c for c in candidatos if c.relative_to(inputs_root).parts[0] == "notebooks"
+    ]
+    if de_notebooks:
+        candidatos = de_notebooks
+
     # Elegimos por fecha de modificación del archivo para asegurar la versión más
     # reciente. El orden alfabético es incorrecto para números con diferente cantidad
     # de dígitos (e.g. mi-version-9 vs mi-version-10). Si dos empatan en mtime,

@@ -106,3 +106,47 @@ def test_elige_por_mtime_no_alfabetico_con_digitos_diferentes(tmp_path: Path):
     # Sin la corrección (sorted alfabético), esto fallaría porque elegiría v9 (b"viejo")
     assert resultado == destino
     assert destino.read_bytes() == b"nuevo"
+
+
+def test_prefiere_el_output_de_notebook_sobre_un_dataset(tmp_path: Path):
+    """El output de notebook gana aunque el Dataset tenga un mtime más nuevo.
+
+    Los outputs de Add Input > Your Work se montan bajo notebooks/<usuario>/<slug>/
+    y son la corrida más avanzada. Un Dataset subido a mano puede quedar con un
+    mtime posterior (Kaggle estampa la fecha de procesamiento de la subida), así
+    que elegir por mtime a secas devuelve el checkpoint viejo del Dataset.
+    """
+    inputs = tmp_path / "input"
+    de_dataset = _montaje_readonly(
+        inputs, "checkpoint-migrado", "last_checkpoint.pth", b"viejo-del-dataset"
+    )
+    de_notebook = _montaje_readonly(
+        inputs,
+        "notebooks",
+        "marcoslund/notebook-fasterrcnn/runs/fasterrcnn_r50fpn/last_checkpoint.pth",
+        b"nuevo-del-notebook",
+    )
+    os.utime(de_notebook, (1000000.0, 1000000.0))
+    os.utime(de_dataset, (1000001.0, 1000001.0))
+
+    destino = tmp_path / "runs" / "fasterrcnn_r50fpn" / "last_checkpoint.pth"
+
+    assert restore_checkpoint_from_inputs(inputs, destino) == destino
+    assert destino.read_bytes() == b"nuevo-del-notebook"
+
+
+def test_desempata_por_mtime_entre_outputs_de_notebook(tmp_path: Path):
+    inputs = tmp_path / "input"
+    viejo = _montaje_readonly(
+        inputs, "notebooks", "usuario/version-9/last_checkpoint.pth", b"viejo"
+    )
+    nuevo = _montaje_readonly(
+        inputs, "notebooks", "usuario/version-10/last_checkpoint.pth", b"nuevo"
+    )
+    os.utime(viejo, (1000000.0, 1000000.0))
+    os.utime(nuevo, (1000001.0, 1000001.0))
+
+    destino = tmp_path / "runs" / "fasterrcnn_r50fpn" / "last_checkpoint.pth"
+
+    assert restore_checkpoint_from_inputs(inputs, destino) == destino
+    assert destino.read_bytes() == b"nuevo"
