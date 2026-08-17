@@ -166,11 +166,15 @@ def generate_experiment_report(
     train_time_min: float,
     device_name: str,
 ) -> dict:
-    """Evalúa sobre validación y escribe los diez artefactos del experimento."""
+    """Evalúa el modelo sobre el loader recibido y escribe los diez artefactos.
+
+    Los parámetros se llaman `val_loader`/`val_dataset` por historia: los
+    notebooks hoy pasan el split de test para las métricas finales.
+    """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print("Recolectando predicciones sobre validación...")
+    print("Recolectando predicciones sobre el set de evaluación...")
     predictions, targets = collect_predictions(model, val_loader, device)
 
     print("Calculando mAP...")
