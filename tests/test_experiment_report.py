@@ -111,7 +111,7 @@ def test_build_ultralytics_metrics_row_asigna_cada_clase_a_su_columna():
     assert fila["f1"] == round(2 * 0.6 * 0.5 / 1.1, 4)
     # El preproceso no cuenta: 1000 / (8 + 2).
     assert fila["fps"] == 100.0
-    assert fila["split"] == "val"
+    assert fila["split"] == "test"
     assert set(fila) == set(METRICS_SUMMARY_COLUMNS)
 
 
@@ -169,7 +169,7 @@ def test_genera_todos_los_artefactos_del_spec(synthetic_dataset, tmp_path):
     assert set(metricas) == set(METRICS_SUMMARY_COLUMNS)
     assert metricas["experiment"] == "fasterrcnn_test"
     assert metricas["family"] == "Faster R-CNN"
-    assert metricas["split"] == "val"
+    assert metricas["split"] == "test"
     assert metricas["train_time_min"] == 1.5
     assert metricas["params_M"] > 0
 

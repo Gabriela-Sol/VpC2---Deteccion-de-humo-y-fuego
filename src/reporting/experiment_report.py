@@ -88,7 +88,7 @@ def build_metrics_row(
         "mAP50_95_fire": round(map_metrics["map50_95_per_class"][label_fire], 4),
         "fps": round(fps, 2),
         "device": device_name,
-        "split": "val",
+        "split": "test",
     }
 
 
@@ -151,7 +151,7 @@ def build_ultralytics_metrics_row(
         "mAP50_95_fire": round(ap_de(box_metrics.ap, fire_id), 4),
         "fps": round(1000.0 / ms_por_imagen, 2),
         "device": device_name,
-        "split": "val",
+        "split": "test",
     }
 
 
