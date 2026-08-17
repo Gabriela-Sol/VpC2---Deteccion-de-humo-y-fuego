@@ -25,6 +25,10 @@ def restore_checkpoint_from_inputs(inputs_root: Path, dest_path: Path) -> Path |
     dest_path = Path(dest_path)
 
     if dest_path.exists():
+        # Sin este aviso, un checkpoint viejo copiado por una corrida anterior
+        # de la celda en la misma sesión sobrevive en silencio aunque los
+        # inputs montados hayan cambiado.
+        print(f"Se conserva el checkpoint ya presente en {dest_path} (no se copió nada).")
         return dest_path
 
     if not inputs_root.is_dir():
@@ -54,6 +58,8 @@ def restore_checkpoint_from_inputs(inputs_root: Path, dest_path: Path) -> Path |
     # de dígitos (e.g. mi-version-9 vs mi-version-10). Si dos empatan en mtime,
     # sorted() proporciona un desempate determinista por ruta.
     origen = max(candidatos, key=lambda p: (p.stat().st_mtime, str(p)))
+
+    print(f"Checkpoint elegido entre {len(candidatos)} candidato(s): {origen}")
 
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(origen, dest_path)
