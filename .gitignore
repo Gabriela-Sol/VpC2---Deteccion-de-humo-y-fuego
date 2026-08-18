@@ -11,10 +11,6 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
-# Datos
-data/*
-!data/README.md
-
 # Resultados de entrenamiento
 runs/
 outputs/

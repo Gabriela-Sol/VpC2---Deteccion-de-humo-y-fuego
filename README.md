@@ -65,8 +65,6 @@ negativas), anotadas en formato YOLO con dos clases (`smoke`, `fire`).
 ├── configs/
 │   ├── dataset/dfire_colab.yaml     # YAML de dataset (formato Ultralytics) usado en Colab
 │   └── experiments/*.yaml           # Un YAML por experimento: modelo + hiperparámetros
-├── data/                            # Vacío en el repo (ignorado por git); reservado para datos locales
-├── demo/                            # Reservado para materiales de demostración
 ├── notebooks/
 │   ├── 01_exploracion_dfire.ipynb          # EDA: distribución de clases, tamaños de caja, splits
 │   ├── 02_entrenamiento_YOLOv8.ipynb       # Entrenamiento y evaluación de YOLOv8n
@@ -79,6 +77,8 @@ negativas), anotadas en formato YOLO con dos clases (`smoke`, `fire`).
 ├── paper/
 │   ├── paper.tex                    # Informe (formato IEEE) con estado del arte, metodología y resultados
 │   └── paper.pdf
+├── presentation/
+│   └── presentation.pdf             # Presentación del trabajo
 ├── reports/
 │   ├── figures/                     # Figuras usadas en el paper (EDA y comparación entre modelos)
 │   └── results/
@@ -170,7 +170,7 @@ entrenamiento:
 
 1. Clona este repositorio (o usa el checkout local si no corre en Colab).
 2. Descarga el dataset D-Fire desde Kaggle vía `kagglehub` (queda en el caché
-   de esa librería, no en `data/`).
+   de esa librería, fuera del repositorio).
 3. Arma o carga la configuración del experimento (`configs/experiments/*.yaml`
    o, en YOLO11/YOLO26s, un diccionario equivalente definido en el propio
    notebook).
@@ -234,8 +234,12 @@ model.eval().to(device)
 > correspondiente (con `RUN_TRAINING = True`, quedan en Google Drive) o usar
 > una copia local que ya se haya generado antes.
 
-## Informe
+## Informe y presentación
 
 El análisis completo —estado del arte, metodología, resultados por modelo y
 conclusiones— está en [`paper/paper.tex`](paper/paper.tex) /
 [`paper/paper.pdf`](paper/paper.pdf).
+
+La presentación del trabajo, con el resumen de la comparación y las
+conclusiones, está en
+[`presentation/presentation.pdf`](presentation/presentation.pdf).
